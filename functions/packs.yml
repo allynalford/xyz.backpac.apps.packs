@@ -1,0 +1,22 @@
+packCreate:
+  handler: backpac/wallet.createWallet
+  iamRoleStatementsName: walletCreate-role
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - s3:GetObject
+      Resource: 
+        - "arn:aws:s3:::${opt:stage, self:provider.stage}:${self:provider.environment.PACKS_BUCKET}/*"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:PutItem
+      Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACK_MAN}"
+  events:
+    - http:
+        path: backpac/createWallet
+        method: get 
+        authorizer: aws_iam
+        cors: true

@@ -1,0 +1,35 @@
+name: userBackpacCreation-${self:service}-${opt:stage, self:provider.stage}
+id: UserBackpacCreationStateMachine
+definition:
+  Comment: "Create a Backpac wallet for a user"
+  StartAt: BackpacCreate
+  States:
+    BackpacCreate:
+      Type: Task
+      Resource: 
+        Fn::GetAtt: [packCreate, Arn]
+      #"arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-languageStart"
+      Next: Stop
+    Stop:
+      Type: Task
+      Resource: 
+        Fn::GetAtt:
+          - pacStop
+          - Arn
+      End: true       
+# notifications:
+#   ABORTED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   FAILED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   RUNNING:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   SUCCEEDED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   TIMED_OUT:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn] 
