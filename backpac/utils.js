@@ -60,6 +60,43 @@ module.exports._estimateAssetTransfer = async (contractAddress, tokenId, originA
  *
  * @author Allyn j. Alford <Allyn@backpac.xyz>
  * @async
+ * @function _estimateMint
+ * @param {String} address - ethereum wallet address. the string representing the address to check for balance
+ * @param {String} page - the integer page number, if pagination is enabled
+ * @param {String} offset - the number of transactions displayed per page
+ * @return {Promise<Array>} Response Array for next step to process.
+ */
+ module.exports._estimateMint = async (contractAddress, destinationAddress, quantity) => {
+    try {
+        const provider = new ethers.providers.JsonRpcProvider(process.env.PROVIDER_API_URL);
+
+        //Use the Origin address to lookup the pri_va_te K_E_Y
+        const PRI_K = "";
+
+        //Use the contract Address to lookup the ABI
+        const contract = {};
+
+        const wallet = new ethers.Wallet(PRI_K, provider);
+        //Get gas price
+        const gasPrice = await provider.getGasPrice();
+        //Grab contract ABI and create an instance
+        const nftContract = new ethers.Contract(
+            contractAddress,
+            contract.abi,
+            wallet
+        );
+        //Estimate gas limit
+        return await nftContract.estimateGas["mint(address,address, uint256)"](contractAddress, destinationAddress, quantity, { gasPrice });
+    } catch (e) {
+        console.error(e);
+    }
+};
+
+/**
+ * returns transaction data about the purchase of the NFT
+ *
+ * @author Allyn j. Alford <Allyn@backpac.xyz>
+ * @async
  * @function _createWallet
  * @param {String} address - ethereum wallet address. the string representing the address to check for balance
  * @param {String} page - the integer page number, if pagination is enabled
