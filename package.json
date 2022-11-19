@@ -20,7 +20,9 @@
     "crypto-js": "^4.1.1",
     "dateformat": "^4.5.1",
     "ethers": "^5.7.1",
+    "ipfs-http-client": "^59.0.0",
     "lambda-log": "^3.1.0",
+    "lodash": "^4.17.21",
     "uuid": "^9.0.0"
   }
 }

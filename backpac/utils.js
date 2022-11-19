@@ -11,7 +11,7 @@ const ethers = require("ethers");
  */
  module.exports._createWallet = async () => {
     try {
-        const wallet = ethers.Wallet.createRandom();
+        //const wallet = ethers.Wallet.createRandom();
         return ethers.Wallet.createRandom();
     } catch (e) {
         console.error(e);

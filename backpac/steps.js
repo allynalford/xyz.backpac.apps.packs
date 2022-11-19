@@ -11,53 +11,54 @@ function CustomError(name, message) {
 CustomError.prototype = new Error();
 
 
-module.exports.start = async event => {
-    let req, dt, contractAddresses, chain, collectionUtils;
-    try{
-        //req = (event.body !== "" ? JSON.parse(event.body) : event);
-        req = event;
-        log.options.tags = ['log', '<<level>>'];
-        dt = dateFormat(new Date(), "isoUtcDateTime");
-        contractAddresses  = req.contractAddresses;
-        chain  = req.chain;
+module.exports.packStart = async (event) => {
+  let req, dt, issuer, userUUID, name, chain, developeruuid;
+  try {
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
+    log.options.tags = ["log", "<<level>>"];
+    dt = dateFormat(new Date(), "isoUtcDateTime");
 
-        if(typeof contractAddresses  === 'undefined') throw new Error("contractAddresses is undefined");
-        if(contractAddresses.length  === 0) throw new Error("contractAddresses list is empty");
-        if(typeof chain  === 'undefined') throw new Error("chain is undefined");
+    developeruuid = req.developeruuid;
 
+    chain = req.chain;
 
-        collectionUtils = require('./collectionUtils');
+    if (typeof chain === "undefined") throw new Error("chain is undefined");
 
+    if (typeof developeruuid === "undefined") {
+      issuer = req.issuer;
+      userUUID = req.userUUID;
+      name = req.name;
 
-    }catch(e){
-      console.error(e);
-      const error = new CustomError('HandledError', e.message);
-      return error;
+      if (typeof issuer === "undefined") throw new Error("issuer is undefined");
+      if (typeof userUUID === "undefined")
+        throw new Error("userUUID is undefined");
+      if (typeof name === "undefined") throw new Error("name is undefined");
     }
+  } catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
 
-    try{
+  try {
+    console.log();
 
-
-
-
-        //Pass the addresses along to the next step
-       return {chain, addresses};
-    }catch(e){
-        console.error(e);
-        const error = new CustomError('HandledError', e.message);
-        return error;
+    if (typeof developeruuid === "undefined") {
+      console.log("Response", { chain, issuer, userUUID, name, type: "user" });
+      return { chain, issuer, userUUID, name, type: "user" };
+    } else {
+      console.log("Response", { chain, developeruuid, type: "developer" });
+      return { chain, developeruuid, type: "developer" };
     }
-  
+  } catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
 };
 
 
-
-module.exports.stop = async (event) => {
-    console.log(event)
-
-
-    return { success: true };
-};
 
 module.exports.stop = async (event) => {
     log.options.tags = ['log', '<<level>>'];

@@ -37,7 +37,18 @@ package:
   individually: false
 functions:
   - ${file(./functions/packs.yml)}    
+stepFunctions: 
+  validate: false
+  stateMachines:
+    backpac:
+      ${file(./statemachines/backpac-create-machine.yml)}
 resources:
+  Outputs:
+    BackpacCreateStateMachineArn:
+        Value:
+          Ref: BackpacCreationStateMachine
+        Export:
+          Name: BackpacCreateStateMachineArn-${self:provider.stage}
   Resources: 
     PacksEncryptedBucket:
       Type: AWS::S3::Bucket

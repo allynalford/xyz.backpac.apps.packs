@@ -5,6 +5,63 @@ const dateFormat = require('dateformat');
 const responses = require('../common/responses.js');
 const CryptoJS = require("crypto-js");
 const s3 = require('../common/s3Utils');
+const Pack = require('../model/Pack');
+const DeveloperPack = require('../model/DeveloperPack');
+
+
+module.exports.createDeveloperWallet = async (event) => {
+  let req, dt, chain, developerUUID, name;
+  try {
+    req = JSON.parse(event.body);
+    dt = dateFormat(new Date(), "isoUtcDateTime");
+    developeruuid = req.developeruuid;
+    chain = req.chain;
+
+    if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
+    if (typeof chain === "undefined") throw new Error("chain is undefined");
+
+  } catch (e) {
+    console.error(e);
+    return respond(
+      {
+        success: false,
+        error: true,
+        message: e.message,
+        e,
+      },
+      416
+    );
+  }
+
+  try {
+   
+
+
+    const _DeveloperPack = new DeveloperPack(chain, developeruuid);
+
+    console.log(_DeveloperPack);
+
+
+    return responses.respond({ error: false, success: true, dt }, 200);
+  } catch (err) {
+    console.error(err);
+    const res = {
+      error: true,
+      success: false,
+      message: err.message,
+      e: err,
+      code: 201,
+    };
+    console.error("module.exports.getMetadatav2", err.response.data);
+
+    if(typeof err.response.data !== "undefined"){
+      return responses.respond({metaData: err.response.data, error: true, success: false}, 200);
+    }
+    return responses.respond(res, 201);
+  }
+
+};
+
 module.exports.createWallet = async (event) => {
   let req, dt, issuer, userUUID, name;
   try {
@@ -101,4 +158,5 @@ module.exports.createWallet = async (event) => {
     }
     return responses.respond(res, 201);
   }
+
 };

@@ -1,0 +1,55 @@
+name: backpacCreationStateMachine-${self:service}-${opt:stage, self:provider.stage}
+id: BackpacCreationStateMachine
+definition:
+  Comment: "Create a Backpac wallet for a user or brand"
+  StartAt: Start
+  States:
+    Start:
+      Type: Task
+      Resource: 
+        Fn::GetAtt: [packStart, Arn]
+      Next: StartChoiceState
+    StartChoiceState:
+      Type: Choice
+      Choices:
+      - Variable: "$.type"
+        StringEquals: "developer"
+        Next: Stop
+      - Variable: "$.type"
+        StringEquals: "user"
+        Next: Stop
+    # DevBackpacCreate:
+    #   Type: Task
+    #   Resource: 
+    #     Fn::GetAtt: [developerPackCreate, Arn]
+    #   #"arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-languageStart"
+    #   Next: Stop
+    # UserBackpacCreate:
+    #   Type: Task
+    #   Resource: 
+    #     Fn::GetAtt: [packCreate, Arn]
+    #   #"arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-languageStart"
+    #   Next: Stop
+    Stop:
+      Type: Task
+      Resource: 
+        Fn::GetAtt:
+          - packStop
+          - Arn
+      End: true       
+# notifications:
+#   ABORTED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   FAILED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   RUNNING:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   SUCCEEDED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   TIMED_OUT:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn] 
