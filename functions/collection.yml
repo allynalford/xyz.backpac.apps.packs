@@ -33,7 +33,7 @@ collectionEstimateFees:
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKSMASTER}"
 collectionDeploy:
   handler: collection/steps.deployContract
-  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-collectionEstimateFees-role
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-collectionDeploy-role
   iamRoleStatements:
     - Effect: Allow
       Action:

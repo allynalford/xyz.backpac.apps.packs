@@ -14,26 +14,34 @@ definition:
       Choices:
       - Variable: "$.hasWallet"
         StringEquals: "true"
-        Next: EstimateFees
+        Next: EstimateFeesState
       - Variable: "$.hasWallet"
         StringEquals: "false"
         Next: Stop
-    EstimateFees:
+    EstimateFeesState:
       Type: Task
       Resource: 
         Fn::GetAtt: [collectionEstimateFees, Arn]
+      Next: EstimateChoiceState
+    EstimateChoiceState:
+      Type: Choice
+      Choices:
+      - Variable: "$.hasGas"
+        StringEquals: "true"
+        Next: CollectionDeployState
+      - Variable: "$.hasGas"
+        StringEquals: "false"
+        Next: Stop
+    CollectionDeployState:
+      Type: Task
+      Resource: 
+        Fn::GetAtt: [collectionDeploy, Arn]
       Next: Stop
-    # UserBackpacCreate:
-    #   Type: Task
-    #   Resource: 
-    #     Fn::GetAtt: [packCreate, Arn]
-    #   #"arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-languageStart"
-    #   Next: Stop
     Stop:
       Type: Task
       Resource: 
         Fn::GetAtt:
-          - packStop
+          - collectionStop
           - Arn
       End: true       
 # notifications:

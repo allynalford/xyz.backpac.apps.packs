@@ -69,8 +69,8 @@ module.exports.collectionStart = async (event) => {
 module.exports.estimateFees = async (event) => {
   let req, dt, chainDeveloperuuid, contractId, developeruuid;
   try {
-    req = event.body !== "" ? JSON.parse(event.body) : event;
-    //req = event;
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
     dt = dateFormat(new Date(), "isoUtcDateTime");
     developeruuid = req.developeruuid;
     contractId = req.contractId;
@@ -170,7 +170,7 @@ module.exports.estimateFees = async (event) => {
     }
    
 
-    return { error: false, success: true, dt, chainDeveloperuuid, contractId, developeruuid, gasEstimate, addressBalance};
+    return {hasGas: "true", dt, chainDeveloperuuid, contractId, developeruuid};
 
   }catch (e) {
     console.error(e);
@@ -182,15 +182,14 @@ module.exports.estimateFees = async (event) => {
 
 
 module.exports.deployContract = async (event) => {
-  let req, dt, chainDeveloperuuid, contractId, developeruuid, gasEstimate;
+  let req, dt, chainDeveloperuuid, contractId, developeruuid;
   try {
-    req = event.body !== "" ? JSON.parse(event.body) : event;
-    //req = event;
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
     dt = dateFormat(new Date(), "isoUtcDateTime");
     developeruuid = req.developeruuid;
     contractId = req.contractId;
     chainDeveloperuuid = req.chainDeveloperuuid;
-    gasEstimate = req.gasEstimate;
 
     if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
     if (typeof chainDeveloperuuid === "undefined") throw new Error("chainDeveloperuuid is undefined");
@@ -291,8 +290,12 @@ module.exports.deployContract = async (event) => {
     const update = await _DeveloperContract._updateFields(_DeveloperContract.chainDeveloperuuid, _DeveloperContract.contractId, [
       { name: "contractAddress", value: contract.address },
       { name: "txHash", value: contract.deployTransaction.hash },
+      { name: "owner", value: _DeveloperPack.as },
       { name: "stage", value: "DEPLOYED" },
       { name: "status", value: true },
+      { name: "schema_name", value: "ERC721" },
+      { name: "category", value: ["DEFAULT"] },
+      { name: "privacy", value: ["PUBLIC"] },
     ]);
 
 
