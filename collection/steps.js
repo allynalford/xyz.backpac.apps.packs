@@ -274,23 +274,26 @@ module.exports.deployContract = async (event) => {
     );
    
 
-    console.log('Contract:', contract);
-
+  
         // The address the Contract WILL have once mined
     // See: https://ropsten.etherscan.io/address/0x2bd9aaa2953f988153c8629926d22a6a5f69b14e
-    console.log('Contract : ',contract.address);
+    console.log('Contract Address: ',contract.address);
     // "0x2bD9aAa2953F988153c8629926D22A6a5F69b14E"
 
     // The transaction that was sent to the network to deploy the Contract
     // See: https://ropsten.etherscan.io/tx/0x159b76843662a15bd67e482dcfbee55e8e44efad26c5a614245e12a00d4b1a51
-    console.log('hash: ',contract.deployTransaction.hash);
+    console.log('Contract hash: ',contract.deployTransaction.hash);
     // "0x159b76843662a15bd67e482dcfbee55e8e44efad26c5a614245e12a00d4b1a51"
 
     // The contract is NOT deployed yet; we must wait until it is mined
     await contract.deployed();
-
-
-    const update = await _DeveloperContract._updateFields([{name: "contractAddress", value: contract.address},{name: "txHash", value: contract.deployTransaction.hash}])
+    
+    const update = await _DeveloperContract._updateFields(_DeveloperContract.chainDeveloperuuid, _DeveloperContract.contractId, [
+      { name: "contractAddress", value: contract.address },
+      { name: "txHash", value: contract.deployTransaction.hash },
+      { name: "stage", value: "DEPLOYED" },
+      { name: "status", value: true },
+    ]);
 
 
     console.log('Update', update)

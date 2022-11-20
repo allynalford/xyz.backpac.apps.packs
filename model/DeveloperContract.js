@@ -91,11 +91,11 @@ function DeveloperContract(developeruuid, chain, contractId) {
    try {
      return await dynamo.updateDBRegion(
        {
-         TableName: process.env.DYNAMODB_TABLE_DEVELOPER_CONTRACT,
-         Key: {
-           chainDeveloperuuid: this.chainDeveloperuuid,
-           contractId: this.contractId,
-         },
+        TableName: process.env.DYNAMODB_TABLE_DEVELOPER_CONTRACT,
+        Key: {
+            chainDeveloperuuid: this.chainDeveloperuuid,
+            contractId: this.contractId
+        },
          UpdateExpression: "set #contractAddress = :contractAddress",
          ExpressionAttributeNames: {
            "#contractAddress": "contractAddress",
@@ -114,7 +114,7 @@ function DeveloperContract(developeruuid, chain, contractId) {
    }
  };
 
- DeveloperContract.prototype._updateFields = async (fields) => {
+ DeveloperContract.prototype._updateFields = async (chainDeveloperuuid, contractId, fields) => {
    try {
      const dateFormat = require("dateformat");
      var ExpressionAttributeValues = {},
@@ -135,11 +135,11 @@ function DeveloperContract(developeruuid, chain, contractId) {
 
      //Save the profile to dynamoDB
      return await dynamo.updateDBRegion({
-       TableName: process.env.DYNAMODB_TABLE_DEVELOPER_CONTRACT,
-       Key: {
-         chainDeveloperuuid: this.chainDeveloperuuid,
-         contractId: this.contractId,
-       },
+        TableName: process.env.DYNAMODB_TABLE_DEVELOPER_CONTRACT,
+        Key: {
+            chainDeveloperuuid,
+            contractId
+        },
        UpdateExpression,
        ExpressionAttributeValues,
        ExpressionAttributeNames,
