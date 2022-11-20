@@ -6,7 +6,7 @@ const PRIVATE_KEY   = "...";
 const CONTRACT_NAME = "...";
 const CONTRACT_ARGS = [...];
 
-async function scan(message) {
+module.exports.scan = async (message) =>{
     process.stdout.write(message);
     return await new Promise(function(resolve, reject) {
         process.stdin.resume();
@@ -16,8 +16,7 @@ async function scan(message) {
         });
     });
 }
-
-async function getGasPrice(web3) {
+module.exports.getGasPrice = async (web3) => {
     while (true) {
         const nodeGasPrice = await web3.eth.getGasPrice();
         const userGasPrice = await scan(`Enter gas-price or leave empty to use ${nodeGasPrice}: `);
@@ -28,8 +27,7 @@ async function getGasPrice(web3) {
         console.log("Illegal gas-price");
     }
 }
-
-async function getTransactionReceipt(web3) {
+module.exports.getTransactionReceipt = async (web3) =>  {
     while (true) {
         const hash = await scan("Enter transaction-hash or leave empty to retry: ");
         if (/^0x([0-9A-Fa-f]{64})$/.test(hash)) {
@@ -46,8 +44,7 @@ async function getTransactionReceipt(web3) {
         }
     }
 }
-
-async function send(web3, account, transaction) {
+module.exports.send = async (web3, account, transaction) => {
     while (true) {
         try {
             const options = {

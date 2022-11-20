@@ -1,28 +1,27 @@
-name: backpacCreationStateMachine-${self:service}-${opt:stage, self:provider.stage}
-id: BackpacCreationStateMachine
+name: collectionCreationStateMachine-${self:service}-${opt:stage, self:provider.stage}
+id: CollectionCreationStateMachine
 definition:
-  Comment: "Create a Backpac wallet for a user or brand"
+  Comment: "Create a collection for a Brand or User"
   StartAt: Start
   States:
     Start:
       Type: Task
       Resource: 
-        Fn::GetAtt: [packStart, Arn]
+        Fn::GetAtt: [collectionStart, Arn]
       Next: StartChoiceState
     StartChoiceState:
       Type: Choice
       Choices:
-      - Variable: "$.type"
-        StringEquals: "developer"
-        Next: DevBackpacCreate
-      - Variable: "$.type"
-        StringEquals: "user"
+      - Variable: "$.hasWallet"
+        StringEquals: "true"
+        Next: EstimateFees
+      - Variable: "$.hasWallet"
+        StringEquals: "false"
         Next: Stop
-    DevBackpacCreate:
+    EstimateFees:
       Type: Task
       Resource: 
-        Fn::GetAtt: [packDeveloperCreate, Arn]
-      #"arn:aws:lambda:#{AWS::Region}:#{AWS::AccountId}:function:${self:service}-${opt:stage, self:provider.stage}-languageStart"
+        Fn::GetAtt: [collectionEstimateFees, Arn]
       Next: Stop
     # UserBackpacCreate:
     #   Type: Task

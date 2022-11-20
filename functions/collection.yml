@@ -1,22 +1,79 @@
-packCreate:
-  handler: backpac/collection/collection.create
-  iamRoleStatementsName: collectionCreate-role
+collectionStart:
+  handler: collection/steps.collectionStart
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-collectionCreate-role
   iamRoleStatements:
-    - Effect: "Allow"
-      Action:
-        - s3:GetObject
-      Resource: 
-        - "arn:aws:s3:::${opt:stage, self:provider.stage}:${self:provider.environment.PACKS_BUCKET}/*"
     - Effect: Allow
       Action:
         - dynamodb:DescribeTable
-        - dynamodb:PutItem
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
-        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACK_MAN}"
+collectionEstimateFees:
+  handler: collection/steps.estimateFees
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-collectionEstimateFees-role
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKSMASTER}"
+collectionDeploy:
+  handler: collection/steps.deployContract
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-collectionEstimateFees-role
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}" 
+  environment:
+      table_region: us-east-1      
+collectionStop:
+  handler: collection/steps.stop
+collectionDeployTest:
+  handler: collection/steps.deployContract
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-TEST-role
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
+  environment:
+    table_region: us-east-1 
   events:
     - http:
-        path: backpac/createWallet
-        method: get 
+        path: collection/step/deploy
+        method: post 
         authorizer: aws_iam
         cors: true

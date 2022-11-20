@@ -14,10 +14,17 @@ provider:
     STAGE:  ${opt:stage,'dev'}
     REGION: ${opt:region, self:provider.region}
     ACCOUNTID: ${file(config.${self:provider.stage}.json):AWS_ACT_ID} 
+    ALCHEMY_API_KEY: ${file(config.${self:provider.stage}.json):ALCHEMY_API_KEY} 
+    ALCHEMY_HTTP: ${file(config.${self:provider.stage}.json):ALCHEMY_HTTP} 
     SNS_TOPIC_USER_CREATION: UserCreation-${self:service}-${opt:stage, self:provider.stage}
     PACKS_BUCKET: ${self:service}-${opt:stage, self:provider.stage}-packs
+    DYNAMODB_TABLE_PACKSMASTER: ${self:service}-${opt:stage, self:provider.stage}-packsmaster
+    DYNAMODB_TABLE_PACKSMASTER_MAN: ${self:service}-${opt:stage, self:provider.stage}-packmaster-man
     DYNAMODB_TABLE_PACKS: ${self:service}-${opt:stage, self:provider.stage}-packs
     DYNAMODB_TABLE_PACK_MAN: ${self:service}-${opt:stage, self:provider.stage}-pack-man
+    DYNAMODB_TABLE_BACKPAC: ${self:service}-${opt:stage, self:provider.stage}-backpac
+    DYNAMODB_TABLE_BACKPAC_INDEX: ${self:service}-${opt:stage, self:provider.stage}-backpac-address-index
+    DYNAMODB_TABLE_DEVELOPER_CONTRACT: backpac-api-${opt:stage, self:provider.stage}-developer-contract
   iamRoleStatements:
     - Effect: "Allow"
       Action:
@@ -29,6 +36,8 @@ provider:
         - dynamodb:DescribeTable
         - dynamodb:PutItem
       Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_BACKPAC}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_BACKPAC}/index/*"
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}/index/*"
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACK_MAN}"
@@ -36,19 +45,37 @@ provider:
 package:
   individually: false
 functions:
-  - ${file(./functions/packs.yml)}    
+  - ${file(./functions/packmaster.yml)} 
+  - ${file(./functions/packs.yml)}  
+  - ${file(./functions/collection.yml)}  
 stepFunctions: 
   validate: false
   stateMachines:
-    backpac:
+    backpacCreate:
       ${file(./statemachines/backpac-create-machine.yml)}
+    collectionCreate:
+      ${file(./statemachines/collection-create-machine.yml)}
 resources:
   Outputs:
+    CollectionCreateStateMachineArn:
+        Value:
+          Ref: CollectionCreationStateMachine
+        Export:
+          Name: ${self:service}-${opt:stage, self:provider.stage}-CollectionCreationStateMachineArn
     BackpacCreateStateMachineArn:
         Value:
           Ref: BackpacCreationStateMachine
         Export:
-          Name: BackpacCreateStateMachineArn-${self:provider.stage}
+          Name: ${self:service}-${opt:stage, self:provider.stage}-BackpacCreateStateMachineArn
+    BackpacTableName:
+        Value:
+          Ref: BackpacDynamoDBTable
+        Export:
+          Name: ${self:service}-${opt:stage, self:provider.stage}-BackpacTableName
+    BackpacTableArn:
+        Value: "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_BACKPAC}/index/*"
+        Export:
+          Name: ${self:service}-${opt:stage, self:provider.stage}-BackpacTableArn
   Resources: 
     PacksEncryptedBucket:
       Type: AWS::S3::Bucket
@@ -58,6 +85,48 @@ resources:
           ServerSideEncryptionConfiguration:
             - ServerSideEncryptionByDefault:
                 SSEAlgorithm: AES256
+    PacksMasterDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: chain
+            AttributeType: S
+          -  
+            AttributeName: hash
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: chain
+            KeyType: HASH
+          -
+            AttributeName: hash
+            KeyType: RANGE      
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PACKSMASTER}
+    PackMastermanDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: chainIssuer
+            AttributeType: S
+          -  
+            AttributeName: hash
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: chainIssuer
+            KeyType: HASH
+          -
+            AttributeName: hash
+            KeyType: RANGE      
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_PACKSMASTER_MAN}
     PacksDynamoDBTable:
       Type: 'AWS::DynamoDB::Table'
       Properties:
@@ -100,6 +169,47 @@ resources:
           ReadCapacityUnits: 1
           WriteCapacityUnits: 1
         TableName: ${self:provider.environment.DYNAMODB_TABLE_PACK_MAN}
+    BackpacDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: chainIssuer
+            AttributeType: S
+          -  
+            AttributeName: hash
+            AttributeType: S
+          -  
+            AttributeName: address
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: chainIssuer
+            KeyType: HASH
+          -
+            AttributeName: hash
+            KeyType: RANGE      
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.DYNAMODB_TABLE_BACKPAC_INDEX}
+            KeySchema:
+              - AttributeName: chainIssuer
+                KeyType: HASH
+              - AttributeName: address
+                KeyType: RANGE
+            Projection:
+              ProjectionType: INCLUDE
+              NonKeyAttributes:
+                - created
+                - name
+                - updatedAt
+                - isoDate
+            ProvisionedThroughput:
+              ReadCapacityUnits: ${self:custom.tableThroughput}
+              WriteCapacityUnits: ${self:custom.tableThroughput}  
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_BACKPAC}
 custom:
    tableThroughput: 1
    prune:

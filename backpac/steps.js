@@ -1,7 +1,6 @@
 'use strict';
 const log = require('lambda-log');
 const dateFormat = require('dateformat');
-const { add } = require('lodash');
 
 
 function CustomError(name, message) {
@@ -56,6 +55,50 @@ module.exports.packStart = async (event) => {
     const error = new CustomError("HandledError", e.message);
     return error;
   }
+};
+
+
+module.exports.createDeveloperWallet = async (event) => {
+  let req, dt, chain, developeruuid, name;
+  try {
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
+    dt = dateFormat(new Date(), "isoUtcDateTime");
+    developeruuid = req.developeruuid;
+    chain = req.chain;
+
+    if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
+    if (typeof chain === "undefined") throw new Error("chain is undefined");
+
+  } catch (e){
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+
+  try {
+   
+    const DeveloperPack = require('../model/DeveloperPack');
+
+    console.log('Creating Backpac for:', {chain, developeruuid});
+
+    const _DeveloperPack = new DeveloperPack(chain, developeruuid);
+
+    const wallet = await _DeveloperPack.createWallet();
+
+    //console.log('_DeveloperPack', _DeveloperPack);
+
+    console.log('wallet Address', wallet.address);
+
+
+    return { error: false, success: true, dt};
+
+  }catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+
 };
 
 

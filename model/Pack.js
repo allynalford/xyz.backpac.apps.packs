@@ -174,4 +174,4 @@ function Pack(chain, issuer, name, userUUID) {
 };
 
 
-module.exports = User;
+module.exports = Pack;

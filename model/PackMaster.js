@@ -4,48 +4,24 @@ const log = require('lambda-log');
 const dynamo = require('../common/dynamo');
 const fs   = require('fs');
 const privateKEY  = fs.readFileSync('pri.key', 'utf8');
-const hashKEY  = fs.readFileSync('pri.h.key', 'utf8');
-/**
- * constructor for DeveloperPack Object
- *
- * @author Allyn j. Alford <Allyn@backpac.xyz>
- * @function Pack
- * @param {String} chain - eth | poly
- * @param {String} developeruuid -
- * @param {String} name - Name of the Account
- * @example <caption>Example usage of Contract Object.</caption>
- * @return {DeveloperPack} Pack Instance Object
- */
-function DeveloperPack(chain, developeruuid) { 
-    this.chainIssuer = chain + ":" + developeruuid;
-    this.chain = chain;
-    this.issuer = developeruuid;
-    this.dt =  dateFormat(new Date(), "isoUtcDateTime");
-}
 
 /**
- * set the hash for the Developer Pack
+ * constructor for PackMaster Object
  *
  * @author Allyn j. Alford <Allyn@backpac.xyz>
- * @async
- * @function setHash
- * @requires module:lambda-log
- * @requires module:uuid-by-string
- * @example <caption>Example usage of setHash.</caption>
+ * @function PackMaster
+ * @param {String} chain blockchain for the master
+ * @param {String} hash unique identifier fir the master
+ * @param {String} requires filter for masters within get
+ * @example <caption>Example usage of PackMaster Object.</caption>
+ * @return {PackMaster} Pack Instance Object
  */
- DeveloperPack.prototype.setHash = async function () {
-    log.options.tags = ["log", "<<level>>"];
-    try {
-     const getUuid = require('uuid-by-string');
- 
-     this.hash = getUuid(this.chainIssuer);
- 
-    } catch (e) {
-      console.error(e);
-      log.error(e);
-      throw e;
-    }
-  };
+function PackMaster(chain, hash, requires) { 
+    this.chain = chain;
+    this.hash = hash || null;
+    this.requires = requires || null;
+    this.dt =  dateFormat(new Date(), "isoUtcDateTime");
+}
 
 /**
  * create a Wallet
@@ -56,30 +32,19 @@ function DeveloperPack(chain, developeruuid) {
  * @requires module:./dynamo.js
  * @requires module:lambda-log
  * @requires module:dateformat
- * @example <caption>Example usage of get.</caption>
+ * @return {Promise<Void>} Automation Object
  */
- DeveloperPack.prototype.createWallet = async function () {
+ PackMaster.prototype.createWallet = async function () {
    log.options.tags = ["log", "<<level>>"];
    try {
     const CryptoJS = require("crypto-js");
-    const getUuid = require('uuid-by-string');
-    
-    this.hash = getUuid(this.chainIssuer);
-
-
-    const exists = await this.exists();
-
-    console.log('Exists', exists);
-
-    if(typeof exists !== "undefined"){
-        return {exists: true};
-    }
-
-
     const backpac = require("../backpac/utils");
     const wallet = await backpac._createWallet();
 
-    this.address = wallet.address;
+    const generateApiKey = require('generate-api-key').default;
+
+    this.hash = generateApiKey({ method: 'bytes', min: 12, max: 25 }); // ⇨ 'fae27c801b5092bc'
+
 
      this.as = CryptoJS.AES.encrypt(wallet.address, privateKEY).toString();
 
@@ -92,7 +57,7 @@ function DeveloperPack(chain, developeruuid) {
 
      await this.save();
 
-     return {exists: false, chainIssuer: this.chainIssuer, hash: this.hash, address: this.address}
+     return {hash: this.hash, address: wallet.address}
 
    } catch (e) {
      console.error(e);
@@ -102,32 +67,51 @@ function DeveloperPack(chain, developeruuid) {
  };
 
 
-
-/**
- * get a User from the database and build the object
+ /**
+ * get a PackMaster object
  *
  * @author Allyn j. Alford <Allyn@backpac.xyz>
  * @async
- * @function get
+ * @function current
  * @requires module:./dynamo.js
  * @requires module:lambda-log
  * @requires module:dateformat
  * @example <caption>Example usage of get.</caption>
- * // const Contract = new Contract(chain, contractAddress, status, schema_name, type);
- * // await Contract.get();
- * //@return {Promise<Automation>} Automation Object
+ * @return {Promise<Void>} PackMaster Object
  */
- DeveloperPack.prototype.exists = async function() {
+  PackMaster.prototype.current = async function() {
     log.options.tags = ['log', '<<level>>'];
     try {
-        return await dynamo.qetFromDB({
-            TableName: process.env.DYNAMODB_TABLE_PACKS,
-            ProjectExpression: "chainIssuer, hash",
-            Key: {
-                chainIssuer: this.chainIssuer,
-                hash: this.hash
-            }
+
+
+        const packs = await dynamo.queryDB({
+            TableName: process.env.DYNAMODB_TABLE_PACKSMASTER,
+            KeyConditionExpression: "#chain = :chain",
+            ExpressionAttributeNames: {
+                "#chain": "chain"
+            },
+            ExpressionAttributeValues: {
+                ":chain": this.chain
+            },
         });
+
+        console.log(packs);
+
+        const pack = packs[0];
+
+        const CryptoJS = require("crypto-js");
+
+        var asBytes = CryptoJS.AES.decrypt(pack.as, privateKEY);
+        var pvBytes = CryptoJS.AES.decrypt(pack.pv, privateKEY);
+
+        this.as  = asBytes.toString(CryptoJS.enc.Utf8);
+        this.pv = pvBytes.toString(CryptoJS.enc.Utf8);
+        this.packmasteruuid = pack.packmasteruuid,
+        this.isoDate = pack.isoDate,
+        this.week = pack.week,
+        this.created = pack.created,
+        this.updatedAt = pack.updatedAt
+
     } catch (e) {
         console.error(e);
         log.error(e);
@@ -135,7 +119,6 @@ function DeveloperPack(chain, developeruuid) {
     };
 };
 
-
 /**
  * get a User from the database and build the object
  *
@@ -145,33 +128,35 @@ function DeveloperPack(chain, developeruuid) {
  * @requires module:./dynamo.js
  * @requires module:lambda-log
  * @requires module:dateformat
- * @requires module:crypto-js
  * @example <caption>Example usage of get.</caption>
- * @return {Promise<Void>} Automation Object
+ * @return {Promise<Void>} PackMaster Object
  */
- DeveloperPack.prototype.get = async function() {
+ PackMaster.prototype.get = async function() {
     log.options.tags = ['log', '<<level>>'];
-
     try {
-        const pack = await dynamo.qetFromDB({
-            TableName: process.env.DYNAMODB_TABLE_PACKS,
-            Key: {
-                chainIssuer: this.chainIssuer,
-                hash: this.hash
-            }
+        const packs = await dynamo.queryDB({
+            TableName: process.env.DYNAMODB_TABLE_PACKSMASTER,
+            KeyConditionExpression: "#chain = :chain",
+            ExpressionAttributeNames: {
+                "#chain": "chain"
+            },
+            ExpressionAttributeValues: {
+                ":chain": this.chain
+            },
         });
 
-        //console.log('Pack:', pack)
+        console.log('Packs',packs);
+
+        const pack = packs[0];
 
         const CryptoJS = require("crypto-js");
 
         var asBytes = CryptoJS.AES.decrypt(pack.as, privateKEY);
         var pvBytes = CryptoJS.AES.decrypt(pack.pv, privateKEY);
-        
 
         this.as  = asBytes.toString(CryptoJS.enc.Utf8);
         this.pv = pvBytes.toString(CryptoJS.enc.Utf8);
-        this.packUUID = pack.packUUID,
+        this.packmasteruuid = pack.packmasteruuid,
         this.isoDate = pack.isoDate,
         this.week = pack.week,
         this.created = pack.created,
@@ -196,7 +181,7 @@ function DeveloperPack(chain, developeruuid) {
  * @requires module:dateformat
  * @example <caption>Example usage of get.</caption>
  */
- DeveloperPack.prototype.save = async function() {
+ PackMaster.prototype.save = async function() {
     log.options.tags = ['log', '<<level>>']; 
     try {
         const dt = this.dt;
@@ -208,28 +193,12 @@ function DeveloperPack(chain, developeruuid) {
         //Make sure the instance doesn't already exists
 
         await dynamo.saveItemInDB({
-            TableName: process.env.DYNAMODB_TABLE_PACK_MAN,
+            TableName: process.env.DDYNAMODB_TABLE_PACKSMASTER_MAN,
             Item:{
-                chainIssuer: this.chainIssuer,
+                chain: this.chain,
                 hash: this.hash,
                 ph: this.ph,
-                packmanUUID: uuid.v4(),
-                timeStamp: this.timeStamp,
-                isoDate: this.isodate,
-                week: this.week,
-                created: this.createdatetime,
-                updatedAt: this.updatedat
-            }
-        });
-
-        await dynamo.saveItemInDB({
-            TableName: process.env.DYNAMODB_TABLE_PACKS,
-            Item:{
-                chainIssuer: this.chainIssuer,
-                hash: this.hash,
-                as: this.as,
-                pv: this.pv,
-                packUUID: uuid.v4(),
+                packmastermanuuid: uuid.v4(),
                 timeStamp: this.timeStamp,
                 isoDate: this.isodate,
                 week: this.week,
@@ -239,12 +208,14 @@ function DeveloperPack(chain, developeruuid) {
         });
 
         return await dynamo.saveItemInDB({
-            TableName: process.env.DYNAMODB_TABLE_BACKPAC,
+            TableName: process.env.DYNAMODB_TABLE_PACKSMASTER,
             Item:{
-                chainIssuer: this.chainIssuer,
+                chain: this.chain,
                 hash: this.hash,
-                address: this.address,
-                backpacUUID: uuid.v4(),
+                as: this.as,
+                pv: this.pv,
+                status: false,
+                packmasteruuid: uuid.v4(),
                 timeStamp: this.timeStamp,
                 isoDate: this.isodate,
                 week: this.week,
@@ -252,8 +223,6 @@ function DeveloperPack(chain, developeruuid) {
                 updatedAt: this.updatedat
             }
         });
-
-
     } catch (e) {
         console.error(e);
         log.error(e);
@@ -262,4 +231,4 @@ function DeveloperPack(chain, developeruuid) {
 };
 
 
-module.exports = DeveloperPack;
+module.exports = PackMaster;

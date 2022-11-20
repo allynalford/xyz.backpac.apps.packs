@@ -4,7 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "set": "SET AWS_PROFILE=allyn-backpac",
+    "test": "serverless offline --stage goerli",
+    "deploy": "sls deploy --stage goerli --region us-east-2 --aws-profile allyn-backpac",
+    "deploy:prod": "sls deploy --stage prod --region us-east-2 --aws-profile allyn-backpac",
+    "generate-docs": "node_modules/.bin/jsdoc -c jsdoc.json"
   },
   "author": "Allyn j. Alford",
   "license": "ISC",
@@ -20,9 +24,12 @@
     "crypto-js": "^4.1.1",
     "dateformat": "^4.5.1",
     "ethers": "^5.7.1",
+    "generate-api-key": "^1.0.2",
     "ipfs-http-client": "^59.0.0",
     "lambda-log": "^3.1.0",
     "lodash": "^4.17.21",
-    "uuid": "^9.0.0"
+    "uuid": "^9.0.0",
+    "uuid-by-string": "^4.0.0",
+    "web3": "^1.8.1"
   }
 }

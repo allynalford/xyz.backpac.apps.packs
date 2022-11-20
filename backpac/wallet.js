@@ -5,12 +5,12 @@ const dateFormat = require('dateformat');
 const responses = require('../common/responses.js');
 const CryptoJS = require("crypto-js");
 const s3 = require('../common/s3Utils');
-const Pack = require('../model/Pack');
+// const Pack = require('../model/Pack');
 const DeveloperPack = require('../model/DeveloperPack');
 
 
 module.exports.createDeveloperWallet = async (event) => {
-  let req, dt, chain, developerUUID, name;
+  let req, dt, chain, developeruuid, name;
   try {
     req = JSON.parse(event.body);
     dt = dateFormat(new Date(), "isoUtcDateTime");
@@ -39,10 +39,12 @@ module.exports.createDeveloperWallet = async (event) => {
 
     const _DeveloperPack = new DeveloperPack(chain, developeruuid);
 
-    console.log(_DeveloperPack);
+    const wallet = await _DeveloperPack.createWallet();
+
+    console.log('_DeveloperPack', _DeveloperPack);
 
 
-    return responses.respond({ error: false, success: true, dt }, 200);
+    return responses.respond({ error: false, success: true, dt, wallet }, 200);
   } catch (err) {
     console.error(err);
     const res = {

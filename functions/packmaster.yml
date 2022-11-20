@@ -1,0 +1,17 @@
+createMaster:
+  handler: master/service.create
+  iamRoleStatementsName: createMaster-role-${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:PutItem
+      Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKSMASTER}"
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKSMASTER_MAN}"
+  events:
+    - http:
+        path: master
+        method: post 
+        authorizer: aws_iam
+        cors: true      
