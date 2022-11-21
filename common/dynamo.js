@@ -130,6 +130,19 @@ module.exports.queryDB = (params) =>{
     }
 };
 
+module.exports.queryDBRegion = (params, region) =>{
+  try {
+    const dynamoDB = new AWS.DynamoDB.DocumentClient({region});
+    return dynamoDB
+      .query(params)
+      .promise()
+      .then(res => res.Items)
+      .catch(err => err);
+  } catch (err) {
+      return {error: true, message: err.message, e: err};
+  }
+};
+
 //Scan DB
 module.exports.scanDB = (params) => {
   try {

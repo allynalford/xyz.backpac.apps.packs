@@ -89,7 +89,7 @@ mintAsset:
 mintAssetStop:
   handler: asset/minting.stop
 mintTest:
-  handler: asset/minting.assetMetaData
+  handler: asset/minting.estimateFees
   memorySize: 256
   timeout: 300
   iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintTest-role
@@ -124,7 +124,7 @@ mintTest:
     table_region: us-east-1 
   events:
     - http:
-        path: asset/minting/metadata
+        path: asset/minting/estimate
         method: post 
         authorizer: aws_iam
         cors: true

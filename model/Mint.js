@@ -26,8 +26,10 @@ const dynamo = require('../common/dynamo');
  * @example <caption>Example usage of Mint Object.</caption>
  * @return {Mint} Contract Instance Object
  */
-function Mint(developeruuid, chain, mintId, contractId, image, description, name, external_url, attributes, background_color, animation_url, youtube_url) { 
+function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId, image, description, name, external_url, attributes, background_color, animation_url, youtube_url) { 
     this.chainDeveloperuuid = chain + ":" + developeruuid;
+    this.recipient = recipient || null,
+    this.recipientType = recipientType || null,
     this.mintId = mintId  || null;
     this.developeruuid = developeruuid;
     this.contractId = contractId || null;

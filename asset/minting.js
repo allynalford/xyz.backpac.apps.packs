@@ -71,8 +71,8 @@ module.exports.mintStart = async (event) => {
 module.exports.assetMetaData = async (event) => {
   let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
   try {
-    req = event.body !== "" ? JSON.parse(event.body) : event;
-    //req = event;
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
     log.options.tags = ["log", "<<level>>"];
     dt = dateFormat(new Date(), "isoUtcDateTime");
 
@@ -98,9 +98,17 @@ module.exports.assetMetaData = async (event) => {
   try {
 
     //Let's grab the mint we are processing
+
+    //Extract the chain
     const chain = chainDeveloperuuid.split(":")[0];
+
+    //init module
     const Mint = require('../model/Mint');
-    const mint = new Mint(developeruuid, chain, mintId);
+
+    //init object
+    const mint = new Mint(developeruuid, chain, null, null, mintId);
+
+    //fill object from database
     await mint.get();
 
     //Set values from mint
@@ -116,30 +124,31 @@ module.exports.assetMetaData = async (event) => {
       youtube_url,
     } = mint;
 
-
+    //need ipfs module
     const IPFS = require('../model/IPFS');
 
     //IPFS object for the image
     const ipfs = new IPFS();
 
-    //We need a unqiuekey for the image and the JSON file
-    //We use the dev uuid and the contractId as the folders
-    const key = `${developeruuid}/${contractId}`;
-
     //Use the name as the file name for the JSON and image file
+    //Replace all spaces with a hyphen
     const fileName = name.replace(/\s+/g, '-');
+
+    //need the path module to get the file ext
     var path = require('path');
 
     //Image
-    const imageKey = `${key}/${fileName}${path.extname(image)}`;
+    const imageKey = `${developeruuid}/${contractId}/${fileName}${path.extname(image)}`;
 
     //Metadata
-    const metaDataKey = `${key}/${fileName}.json`;
+    const metaDataKey = `${developeruuid}/${contractId}/${fileName}.json`;
 
     //Down the file from the URL and add it to S3
+    console.info('Downloading image to s3', image);
     await ipfs.getImageByUrl(image, imageKey);
 
     //Upload the file image from s3 to IPFS
+    console.info('Uploading image from s3 to IPFS', imageKey);
     await ipfs.addKey();
 
     //Build the metadata for the NFT
@@ -149,17 +158,25 @@ module.exports.assetMetaData = async (event) => {
     const nftImage = ipfs.getPublicURL();
 
     //Pass all info to the object for creation
+    console.info('Building metadata for image:', nftImage);
     let metadata = new NFTMetadata(nftImage, null, external_url, description, name, attributes, background_color, animation_url, youtube_url);
     
+    console.info('metadata', metadata);
+
     //Build the IPFS object for the metadata
     const metedataIPFS = new IPFS();
 
     //Add the metadata to S3 for the image
+    console.info('Saving metadata to s3..');
     await metedataIPFS.addMetadata(metadata, metaDataKey);
 
     //Add the metadata to IPFS from s3
+    console.info('Uploading metadata from s3 to IPFS...');
     await metedataIPFS.addKey();
 
+
+    //Update the mint
+    console.info('Updating mint.....');
 
     await mint._updateFields(mint, [
       { name: "imageURL", value: ipfs.getPublicURL() },
@@ -169,8 +186,8 @@ module.exports.assetMetaData = async (event) => {
       { name: "metadataURL", value: metedataIPFS.getPublicURL() },
       { name: "metadataKey", value: metedataIPFS.getKey()},
       { name: "metadataCID", value: metedataIPFS.getHash()},
+      { name: "STAGE", value: "METADATA"},
     ]);
-
 
 
     console.log('Response: ', {chainDeveloperuuid, mintId, developeruuid, username, ready: "true", dt});
@@ -184,6 +201,143 @@ module.exports.assetMetaData = async (event) => {
     return error;
   }
 };
+
+
+module.exports.estimateFees = async (event) => {
+  let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
+  try {
+    req = event.body !== "" ? JSON.parse(event.body) : event;
+    //req = event;
+    dt = dateFormat(new Date(), "isoUtcDateTime");
+    developeruuid = req.developeruuid;
+    mintId = req.mintId;
+    chainDeveloperuuid = req.chainDeveloperuuid;
+    username = req.username;
+
+    if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
+    if (typeof chainDeveloperuuid === "undefined") throw new Error("chainDeveloperuuid is undefined");
+    if (typeof mintId === "undefined") throw new Error("mintId is undefined");
+    if (typeof username === "undefined") throw new Error("username is undefined");
+
+  } catch (e){
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+
+  try {
+   
+    const DeveloperPack = require('../model/DeveloperPack');
+    const chain = chainDeveloperuuid.split(":")[0];
+
+    console.log('Getting Backpac for:', {chain, developeruuid});
+
+    const _DeveloperPack = new DeveloperPack(chain, developeruuid);
+
+    await _DeveloperPack.setHash();
+    await _DeveloperPack.get();
+
+    //console.log('_DeveloperPack', _DeveloperPack);
+
+
+    //Let's grab the mint we are processing
+
+    //init module
+    const Mint = require('../model/Mint');
+
+    //init object
+    const mint = new Mint(developeruuid, chain, null, null, mintId);
+
+    //fill object from database
+    await mint.get();
+
+    console.log(mint)
+
+    //Set values from mint
+    const { contractId } = mint;
+
+
+
+    const DeveloperContract = require('../model/DeveloperContract');
+    const _DeveloperContract = new DeveloperContract(developeruuid, chain, contractId);
+    await _DeveloperContract.get();
+
+    console.log('_DeveloperContract', _DeveloperContract);
+
+    //check the wallet balanace
+    const ethers = require('ethers');
+    
+
+    let provider =  new ethers.providers.AlchemyProvider(process.env.STAGE, process.env.ALCHEMY_API_KEY);
+    const balance = await provider.getBalance(_DeveloperPack.as);
+
+    const addressBalance = ethers.utils.formatEther(balance)
+    
+
+    console.info(`Address Balance( ${_DeveloperPack.as}):`, addressBalance);
+
+
+    const contractData =  require("../contracts/Backpac.json");
+
+
+    const contract = new ethers.Contract(_DeveloperContract.contractAddress, contractData.abi, provider);
+    const estimatedGas = await contract.estimateGas.safeMint(mint.recipient, mint.metadataCID)
+
+
+    
+
+    const gasEstimate = ethers.utils.formatEther(estimatedGas);
+
+    console.info('gasEstimate', gasEstimate);
+
+    return false
+
+    //if user wallet has less then the gas Estimate, top them up
+    if (addressBalance <= gasEstimate) {
+      //Grab a Packmaster and transfer the whats needed
+      const PackMaster = require("../model/PackMaster");
+
+      const _PackMaster = new PackMaster(chain);
+
+      await _PackMaster.current();
+
+      let wallet = new ethers.Wallet(_PackMaster.pv);
+
+      let walletSigner = wallet.connect(provider);
+
+      const gas_price = await provider.getGasPrice(); // gasPrice
+
+      console.log(gas_price);
+
+      let gas_limit = "0x100000";
+
+      const tx = {
+        from: _PackMaster.as,
+        to: _DeveloperPack.as,
+        value: ethers.utils.parseEther(gasEstimate),
+        nonce: await provider.getTransactionCount(_PackMaster.as, "latest"),
+        gasLimit: ethers.utils.hexlify(gas_limit), // 100000
+        gasPrice: gas_price,
+      };
+
+      const sent = await walletSigner.sendTransaction(tx);
+
+      console.log(sent);
+    }else{
+      console.info("User can cover deployment", {addressBalance, gasEstimate})
+    }
+   
+
+    return {hasGas: "true", dt, chainDeveloperuuid, contractId, developeruuid};
+
+  }catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+
+};
+
 
 
 module.exports.createDeveloperWallet = async (event) => {
