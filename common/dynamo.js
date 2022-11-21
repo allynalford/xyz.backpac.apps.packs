@@ -68,8 +68,6 @@ module.exports.qetFromDB = (params) => {
  */
  module.exports.qetFromDBRegion = (params, region) => {
   try {
-    console.info('table_region', region);
-
     const dynamoDB = new AWS.DynamoDB.DocumentClient({region});
     return dynamoDB
       .get(params)

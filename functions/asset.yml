@@ -4,6 +4,24 @@ mintStart:
   timeout: 60
   iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintStart-role
   iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
+assetMetaData:
+  handler: asset/minting.assetMetaData
+  memorySize: 128
+  timeout: 60
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-assetMetaData-role
+  iamRoleStatements:
     - Effect: "Allow"
       Action:
         - s3:GetObject
@@ -14,13 +32,20 @@ mintStart:
       Action:
         - dynamodb:DescribeTable
         - dynamodb:GetItem
+        - dynamodb:UpdateItem
       Resource: 
         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
-mintEstimateFees:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
+mintAssetEstimateFees:
   handler: asset/minting.estimateFees
   memorySize: 256
   timeout: 180
-  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintEstimateFees-role
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintAssetEstimateFees-role
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -34,17 +59,16 @@ mintEstimateFees:
         - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
-mint:
+mintAsset:
   handler: asset/minting.mint
   memorySize: 256
   timeout: 900
-  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mint-role
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintAsset-role
   iamRoleStatements:
     - Effect: Allow
       Action:
         - dynamodb:DescribeTable
         - dynamodb:GetItem
-        - dynamodb:UpdateItem
       Resource: 
         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
     - Effect: Allow
@@ -53,16 +77,30 @@ mint:
         - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}" 
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
   environment:
       table_region: us-east-1      
-mintStop:
+mintAssetStop:
   handler: asset/minting.stop
 mintTest:
-  handler: asset/minting.mintStart
+  handler: asset/minting.assetMetaData
   memorySize: 256
   timeout: 300
   iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintTest-role
   iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
     - Effect: "Allow"
       Action:
         - s3:GetObject
@@ -86,7 +124,7 @@ mintTest:
     table_region: us-east-1 
   events:
     - http:
-        path: asset/minting/start
+        path: asset/minting/metadata
         method: post 
         authorizer: aws_iam
         cors: true

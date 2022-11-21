@@ -8,9 +8,68 @@ function CustomError(name, message) {
 }
 CustomError.prototype = new Error();
 
-
 module.exports.mintStart = async (event) => {
-  let req, dt, developeruuid, contractAddress, image, external_url, description, name, attributes, background_color, animation_url, youtube_url;
+  let req, chainDeveloperuuid, mintId, developeruuid, username, dt;
+
+  try {
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
+    log.options.tags = ["log", "<<level>>"];
+    dt = dateFormat(new Date(), "isoUtcDateTime");
+
+    developeruuid = req.developeruuid;
+    mintId = req.mintId;
+    chainDeveloperuuid = req.chainDeveloperuuid;
+    username = req.username;
+
+    if (typeof developeruuid === "undefined")
+      throw new Error("developeruuid is undefined");
+
+    if (typeof mintId === "undefined")
+      throw new Error("mintId is undefined");
+
+    if (typeof chainDeveloperuuid === "undefined")
+      throw new Error("chainDeveloperuuid is undefined");
+
+    if (typeof username === "undefined")
+      throw new Error("username is undefined");
+
+  } catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+
+  try {
+    console.log("Checking Wallet Exists", { chainDeveloperuuid, mintId, developeruuid });
+
+    const chain = chainDeveloperuuid.split(":")[0];
+
+    //Let's make sure we have a wallet
+    const DeveloperPack = require('../model/DeveloperPack');
+
+    const _DeveloperPack = new DeveloperPack(chain, developeruuid);
+    await _DeveloperPack.setHash();
+    const exists = await _DeveloperPack.exists();
+
+    if(typeof exists === "undefined"){
+      console.info("No Wallet Exists", { chainDeveloperuuid, mintId, developeruuid, username });
+      return { hasWallet: "false", chainDeveloperuuid, mintId, developeruuid, username };
+    }
+
+    console.info("Wallet Exists", { chainDeveloperuuid, mintId, developeruuid, username });
+
+    return {hasWallet: "true", chainDeveloperuuid, mintId, developeruuid, username };
+
+  } catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+};
+
+module.exports.assetMetaData = async (event) => {
+  let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
   try {
     req = event.body !== "" ? JSON.parse(event.body) : event;
     //req = event;
@@ -19,23 +78,15 @@ module.exports.mintStart = async (event) => {
 
     //Required
     developeruuid = req.developeruuid;
-    contractId = req.contractId;
-    image = req.image; //Public URL of image for NFT
-    description = req.description;
-    name = req.name;
+    mintId = req.mintId;
+    chainDeveloperuuid = req.chainDeveloperuuid; //Public URL of image for NFT
+    username = req.username;
 
-
-    attributes = req.attributes; //Attributes of NFT
-    external_url = req.external_url; //External URL of collection
-    background_color = req.background_color; //Background color for display
-    animation_url = req.animation_url;
-    youtube_url = req.youtube_url;
 
     if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
-    if (typeof contractId === "undefined") throw new Error("contractId is undefined");
-    if (typeof image === "undefined") throw new Error("image is undefined");
-    if (typeof name === "undefined") throw new Error("name is undefined");
-    if (typeof description === "undefined") throw new Error("description is undefined");
+    if (typeof mintId === "undefined") throw new Error("mintId is undefined");
+    if (typeof chainDeveloperuuid === "undefined") throw new Error("chainDeveloperuuid is undefined");
+    if (typeof username === "undefined") throw new Error("username is undefined");
 
 
   } catch (e) {
@@ -45,9 +96,27 @@ module.exports.mintStart = async (event) => {
   }
 
   try {
-    var url = require("url");
-    var path = require('path')
-  
+
+    //Let's grab the mint we are processing
+    const chain = chainDeveloperuuid.split(":")[0];
+    const Mint = require('../model/Mint');
+    const mint = new Mint(developeruuid, chain, mintId);
+    await mint.get();
+
+    //Set values from mint
+    const {
+      contractId,
+      image,
+      external_url,
+      description,
+      name,
+      attributes,
+      background_color,
+      animation_url,
+      youtube_url,
+    } = mint;
+
+
     const IPFS = require('../model/IPFS');
 
     //IPFS object for the image
@@ -58,10 +127,17 @@ module.exports.mintStart = async (event) => {
     const key = `${developeruuid}/${contractId}`;
 
     //Use the name as the file name for the JSON and image file
-    const fileName = name.replace(' ', '-');
+    const fileName = name.replace(/\s+/g, '-');
+    var path = require('path');
+
+    //Image
+    const imageKey = `${key}/${fileName}${path.extname(image)}`;
+
+    //Metadata
+    const metaDataKey = `${key}/${fileName}.json`;
 
     //Down the file from the URL and add it to S3
-    await ipfs.getImageByUrl(image, `${key}/${fileName}${ext}`);
+    await ipfs.getImageByUrl(image, imageKey);
 
     //Upload the file image from s3 to IPFS
     await ipfs.addKey();
@@ -70,7 +146,7 @@ module.exports.mintStart = async (event) => {
     const NFTMetadata = require('../model/NFTMetadata');
 
     //Build the URL for the image within the metadata
-    const nftImage = process.env.IPFS_PUBLIC_URL + ipfs.hash;
+    const nftImage = ipfs.getPublicURL();
 
     //Pass all info to the object for creation
     let metadata = new NFTMetadata(nftImage, null, external_url, description, name, attributes, background_color, animation_url, youtube_url);
@@ -79,17 +155,28 @@ module.exports.mintStart = async (event) => {
     const metedataIPFS = new IPFS();
 
     //Add the metadata to S3 for the image
-    await metedataIPFS.addMetadata(metadata, `${key}/${fileName}.json`);
+    await metedataIPFS.addMetadata(metadata, metaDataKey);
 
     //Add the metadata to IPFS from s3
     await metedataIPFS.addKey();
 
-    const metadataUrl = "https://ipfs.io/ipfs/" + metedataIPFS.hash;
 
-    console.log(metadataUrl);
+    await mint._updateFields(mint, [
+      { name: "imageURL", value: ipfs.getPublicURL() },
+      { name: "imageKey", value: ipfs.getKey() },
+      { name: "imageCID", value: ipfs.getHash() },
+      { name: "metadata", value: metadata },
+      { name: "metadataURL", value: metedataIPFS.getPublicURL() },
+      { name: "metadataKey", value: metedataIPFS.getKey()},
+      { name: "metadataCID", value: metedataIPFS.getHash()},
+    ]);
 
 
-    return {metadataUrl, fileuuid, ready: "true", dt}
+
+    console.log('Response: ', {chainDeveloperuuid, mintId, developeruuid, username, ready: "true", dt});
+
+
+    return {chainDeveloperuuid, mintId, developeruuid, username, ready: "true", dt}
 
   } catch (e) {
     console.error(e);

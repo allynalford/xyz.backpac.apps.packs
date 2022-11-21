@@ -1,0 +1,75 @@
+name: assetMintStateMachine-${self:service}-${opt:stage, self:provider.stage}
+id: AssetMintStateMachine
+definition:
+  Comment: "Mint a asset to a user"
+  StartAt: Start
+  States:
+    Start:
+      Type: Task
+      Resource: 
+        Fn::GetAtt: [mintStart, Arn]
+      Next: StartChoiceState
+    StartChoiceState:
+      Type: Choice
+      Choices:
+      - Variable: "$.hasWallet"
+        StringEquals: "true"
+        Next: AssetMetadataState
+      - Variable: "$.hasWallet"
+        StringEquals: "false"
+        Next: Stop
+    AssetMetadataState:
+      Type: Task
+      Resource: 
+        Fn::GetAtt: [assetMetaData, Arn]
+      Next: EstimateFeesState
+    EstimateFeesState:
+      Type: Task
+      Resource: 
+        Fn::GetAtt: [mintAssetEstimateFees, Arn]
+      Next: EstimateChoiceState
+    EstimateChoiceState:
+      Type: Choice
+      Choices:
+      - Variable: "$.transferred"
+        StringEquals: "true"
+        Next: GasTransferTxWaitState
+      - Variable: "$.transferred"
+        StringEquals: "false"
+        Next: AssetMintState
+    GasTransferTxWaitState:
+      Type: Wait
+      Seconds: 180
+      Next: AssetMintState
+    AssetMintState:
+      Type: Task
+      Resource: 
+        Fn::GetAtt: [mintAsset, Arn]
+      Next: AssetMintTxWaitState
+    AssetMintTxWaitState:
+      Type: Wait
+      Seconds: 180
+      Next: Stop
+    Stop:
+      Type: Task
+      Resource: 
+        Fn::GetAtt:
+          - mintAssetStop
+          - Arn
+      End: true       
+# notifications:
+#   ABORTED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   FAILED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   RUNNING:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   SUCCEEDED:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn]
+#   TIMED_OUT:
+#     - lambda: 
+#         Fn::GetAtt: [collectionNotification, Arn] 

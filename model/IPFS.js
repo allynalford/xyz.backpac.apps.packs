@@ -185,13 +185,12 @@ IPFS.prototype.getImageByUrl = async function (url, Key) {
  * get a IPFS Basic Auth
  *
  * @author Allyn j. Alford <Allyn@backpac.xyz>
- * @async
  * @function getAuth
  * @requires module:Buffer
  * @example <caption>Example usage of getAuth.</caption>
  * @return {Promise<String>} Automation Object
  */
- IPFS.prototype.getAuth = async function() {
+ IPFS.prototype.getAuth = function() {
     return 'Basic ' + Buffer.from(this.IPFS_PROJECT_ID + ':' + this.IPFS_PROJECT_KEY).toString('base64');
 };
 
@@ -199,14 +198,51 @@ IPFS.prototype.getImageByUrl = async function (url, Key) {
  * get a IPFS Basic Auth
  *
  * @author Allyn j. Alford <Allyn@backpac.xyz>
- * @async
  * @function getAuth
  * @requires module:Buffer
  * @example <caption>Example usage of getAuth.</caption>
  * @return {Promise<String>} Automation Object
  */
- IPFS.prototype.client = async function() {
+ IPFS.prototype.client = function() {
     return this.client;
+};
+
+/**
+ * get object s3 key
+ *
+ * @author Allyn j. Alford <Allyn@backpac.xyz>
+ * @function getKey
+ * @requires module:Buffer
+ * @example <caption>Example usage of getAuth.</caption>
+ * @return {Promise<String>}
+ */
+ IPFS.prototype.getKey = function() {
+  return this.key;
+};
+
+/**
+ * get a IPFS Public URL
+ *
+ * @author Allyn j. Alford <Allyn@backpac.xyz>
+ * @function getPublicURL
+ * @example <caption>Example usage of getAuth.</caption>
+ * @return {Promise<String>} Automation Object
+ */
+ IPFS.prototype.getPublicURL = function() {
+    return process.env.IPFS_PUBLIC_URL + this.hash;
+};
+
+
+/**
+ * get a IPFS CID
+ *
+ * @author Allyn j. Alford <Allyn@backpac.xyz>
+ * @function getHash
+ * @example <caption>Example usage of getHash.</caption>
+ * @return {Promise<String>} IPFS CID
+ */
+ IPFS.prototype.getHash = function() {
+  return this.hash;
 };
 
 
