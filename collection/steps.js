@@ -104,21 +104,20 @@ module.exports.estimateFees = async (event) => {
     const _DeveloperContract = new DeveloperContract(developeruuid, chain, contractId);
     await _DeveloperContract.get();
 
-    //console.log('_DeveloperContract', _DeveloperContract);
+    console.log('_DeveloperContract', _DeveloperContract);
 
     //check the wallet balanace
     const ethers = require('ethers');
     const ContractFactory = ethers.ContractFactory;
 
-    console.log('Address:', _DeveloperPack.as);
 
-    let provider =  new ethers.providers.AlchemyProvider("goerli", process.env.ALCHEMY_API_KEY);
+    let provider =  new ethers.providers.AlchemyProvider(process.env.STAGE, process.env.ALCHEMY_API_KEY);
     const balance = await provider.getBalance(_DeveloperPack.as);
 
     const addressBalance = ethers.utils.formatEther(balance)
     
 
-    console.info('addressBalance', addressBalance);
+    console.info(`Address Balance( ${_DeveloperPack.as}):`, addressBalance);
 
 
     const contractData =  require("../contracts/Backpac.json");

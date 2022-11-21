@@ -7,29 +7,34 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
 
-contract Backpac is ERC721, Ownable, ERC721URIStorage {
+contract BackpacV1 is ERC721, Ownable, ERC721URIStorage {
     using Counters for Counters.Counter;
 
     Counters.Counter private _tokenIdCounter;
 
-    uint256 MAX_SUPPLY = 50000;
-    uint256 public mintPrice = 0.006 ether;
+    uint256 MAX_SUPPLY = 10000;
+    uint256 public mintPrice = 0.000 ether;
+    string BASE_URI = "https://ipfs.filebase.io/ipfs/";
 
-    constructor() ERC721("Exotics at Dania Pointe 2022", "EADP") {}
+    constructor(string memory name_, string memory symbol_, uint256 supply_, uint256 mintPrice_, string memory baseURI_) ERC721(name_, symbol_) {
+        MAX_SUPPLY = supply_;
+        mintPrice = mintPrice_;
+        BASE_URI = baseURI_;
+    }
 
      function withdrawBalance() external onlyOwner {
         payable(msg.sender).transfer(address(this).balance);
     }
 
-    function _baseURI() internal pure override returns (string memory) {
-        return "https://ipfs.filebase.io/ipfs/";
+    function _baseURI() internal view override returns (string memory) {
+        return BASE_URI;
     }
 
     function setMintPrice(uint256 _mintPrice) public {
         mintPrice = _mintPrice;
     }
 
-    function safeMint(address to) public payable {
+    function safeMint(address to, string memory cid) public payable {
         require(
             _tokenIdCounter.current() <= MAX_SUPPLY,
             "I'm sorry we reached the cap"
@@ -41,7 +46,7 @@ contract Backpac is ERC721, Ownable, ERC721URIStorage {
         _safeMint(to, tokenId);
         _setTokenURI(
             tokenId,
-            "QmafR5kXAMLzyUTvov1mT3MRbwN9BQgwvwYnXR8eon28xq"
+            cid
         );
     }
 

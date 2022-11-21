@@ -307,6 +307,11 @@
 						"internalType": "address",
 						"name": "to",
 						"type": "address"
+					},
+					{
+						"internalType": "string",
+						"name": "cid",
+						"type": "string"
 					}
 				],
 				"name": "safeMint",
@@ -661,11 +666,11 @@
 			]
 		},
 		"contracts/Backpac.v1.sol": {
-			"keccak256": "0x6c23b4d915065c3e13fe56c55711db6418bbf88b8665b94aa5d8193a3c4c8b47",
+			"keccak256": "0x8ef090221b48bf3292c4d13e964043151b22286be1ac7c9a2795219021afa9fe",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://c13cb8552432b06d5ad8e73862cac57609bafae9a69f88c9aeadd00b9e9df498",
-				"dweb:/ipfs/QmUwvRUBRXQHsXrNgnxqx9DbyJW9mr5jEdo4DsTj8jCgB6"
+				"bzz-raw://1b2b223a757a7dc1b6cf263a21ecc789628b01887e9f88078d79306380e44337",
+				"dweb:/ipfs/QmZxb6t829QjQigm1DHtUgMNoLYyMJVC7wFPMidRUzhmoP"
 			]
 		}
 	},

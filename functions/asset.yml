@@ -1,26 +1,26 @@
-collectionStart:
-  handler: collection/steps.collectionStart
+mintStart:
+  handler: asset/minting.mintStart
   memorySize: 128
   timeout: 60
-  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-collectionCreate-role
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintStart-role
   iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource: 
+        - "arn:aws:s3:::${opt:stage, self:provider.stage}:${self:provider.environment.ASSET_UPLOAD_BUCKET}/*"
     - Effect: Allow
       Action:
         - dynamodb:DescribeTable
         - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
-    - Effect: Allow
-      Action:
-        - dynamodb:DescribeTable
-        - dynamodb:GetItem
-      Resource: 
-        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
-collectionEstimateFees:
-  handler: collection/steps.estimateFees
+mintEstimateFees:
+  handler: asset/minting.estimateFees
   memorySize: 256
   timeout: 180
-  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-collectionEstimateFees-role
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintEstimateFees-role
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -34,12 +34,11 @@ collectionEstimateFees:
         - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
-        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKSMASTER}"
-collectionDeploy:
-  handler: collection/steps.deployContract
+mint:
+  handler: asset/minting.mint
   memorySize: 256
   timeout: 900
-  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-collectionDeploy-role
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mint-role
   iamRoleStatements:
     - Effect: Allow
       Action:
@@ -56,14 +55,20 @@ collectionDeploy:
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}" 
   environment:
       table_region: us-east-1      
-collectionStop:
-  handler: collection/steps.stop
-collectionDeployTest:
-  handler: collection/steps.deployContract
+mintStop:
+  handler: asset/minting.stop
+mintTest:
+  handler: asset/minting.mintStart
   memorySize: 256
   timeout: 300
-  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-TEST-role
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintTest-role
   iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - s3:GetObject
+        - s3:PutObject
+      Resource: 
+        - "arn:aws:s3:::${opt:stage, self:provider.stage}:${self:provider.environment.ASSET_UPLOAD_BUCKET}/*"
     - Effect: Allow
       Action:
         - dynamodb:DescribeTable
@@ -81,7 +86,7 @@ collectionDeployTest:
     table_region: us-east-1 
   events:
     - http:
-        path: collection/step/deploy
+        path: asset/minting/start
         method: post 
         authorizer: aws_iam
         cors: true

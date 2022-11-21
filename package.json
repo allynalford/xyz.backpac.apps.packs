@@ -21,13 +21,17 @@
     "serverless-step-functions": "^3.10.0"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.213.0",
+    "@aws-sdk/s3-request-presigner": "^3.213.0",
     "crypto-js": "^4.1.1",
     "dateformat": "^4.5.1",
     "ethers": "^5.7.1",
+    "form-data": "^4.0.0",
     "generate-api-key": "^1.0.2",
-    "ipfs-http-client": "^59.0.0",
+    "ipfs-http-client": "^55.0.1-rc.2",
     "lambda-log": "^3.1.0",
     "lodash": "^4.17.21",
+    "node-abort-controller": "^3.0.1",
     "uuid": "^9.0.0",
     "uuid-by-string": "^4.0.0",
     "web3": "^1.8.1"

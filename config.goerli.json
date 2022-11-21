@@ -20,6 +20,8 @@
 "IPFS_PROJECT_KEY": "7f5db5d9b14451b7396f565b2987bc29",
 "IPFS_PORT": 5001,
 "IPFS_GATEWAY": "https://ipfs.infura.io:5001",
+"IPFS_GATEWAY_HOST": "ipfs.infura.io",
+"IPFS_DEDICATED_HOST": "backpac.infura-ipfs.io",
 "IPFS_DEDICATED_GATEWAY": "https://backpac.infura-ipfs.io",
 "PROVIDER_API_URL" : "https://eth-goerli.g.alchemy.com/v2/SExwOepdX3Gy9l-FZQVVITPkIf9sfzNJ",
 "ALCHEMY_API_KEY" : "9wphh27ptNLJzwxj_wzq5RTf_h7AhIwt",

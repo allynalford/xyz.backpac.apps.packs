@@ -16,8 +16,16 @@ provider:
     ACCOUNTID: ${file(config.${self:provider.stage}.json):AWS_ACT_ID} 
     ALCHEMY_API_KEY: ${file(config.${self:provider.stage}.json):ALCHEMY_API_KEY} 
     ALCHEMY_HTTP: ${file(config.${self:provider.stage}.json):ALCHEMY_HTTP} 
+    IPFS_PROJECT_ID: ${file(config.${self:provider.stage}.json):IPFS_PROJECT_ID}
+    IPFS_PROJECT_KEY: ${file(config.${self:provider.stage}.json):IPFS_PROJECT_KEY}
+    IPFS_PORT: ${file(config.${self:provider.stage}.json):IPFS_PORT}
+    IPFS_DEDICATED_GATEWAY: ${file(config.${self:provider.stage}.json):IPFS_DEDICATED_GATEWAY}
+    IPFS_GATEWAY: ${file(config.${self:provider.stage}.json):IPFS_GATEWAY}
+    IPFS_GATEWAY_HOST: ${file(config.${self:provider.stage}.json):IPFS_GATEWAY_HOST}
+    IPFS_DEDICATED_HOST: ${file(config.${self:provider.stage}.json):IPFS_DEDICATED_HOST} 
     SNS_TOPIC_USER_CREATION: UserCreation-${self:service}-${opt:stage, self:provider.stage}
     PACKS_BUCKET: ${self:service}-${opt:stage, self:provider.stage}-packs
+    ASSET_UPLOAD_BUCKET: ${self:service}-${opt:stage, self:provider.stage}-asset-uploads
     DYNAMODB_TABLE_PACKSMASTER: ${self:service}-${opt:stage, self:provider.stage}-packsmaster
     DYNAMODB_TABLE_PACKSMASTER_MAN: ${self:service}-${opt:stage, self:provider.stage}-packmaster-man
     DYNAMODB_TABLE_PACKS: ${self:service}-${opt:stage, self:provider.stage}-packs
@@ -25,6 +33,7 @@ provider:
     DYNAMODB_TABLE_BACKPAC: ${self:service}-${opt:stage, self:provider.stage}-backpac
     DYNAMODB_TABLE_BACKPAC_INDEX: ${self:service}-${opt:stage, self:provider.stage}-backpac-address-index
     DYNAMODB_TABLE_DEVELOPER_CONTRACT: backpac-api-${opt:stage, self:provider.stage}-developer-contract
+    DYNAMODB_TABLE_DEVELOPER_CONTRACT_REGION: us-east-1
   iamRoleStatements:
     - Effect: "Allow"
       Action:
@@ -48,6 +57,7 @@ functions:
   - ${file(./functions/packmaster.yml)} 
   - ${file(./functions/packs.yml)}  
   - ${file(./functions/collection.yml)}  
+  - ${file(./functions/asset.yml)}
 stepFunctions: 
   validate: false
   stateMachines:
@@ -77,6 +87,10 @@ resources:
         Export:
           Name: ${self:service}-${opt:stage, self:provider.stage}-BackpacTableArn
   Resources: 
+    AssetUploadEncryptedBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.ASSET_UPLOAD_BUCKET}
     PacksEncryptedBucket:
       Type: AWS::S3::Bucket
       Properties:

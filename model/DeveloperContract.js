@@ -51,13 +51,16 @@ function DeveloperContract(developeruuid, chain, contractId) {
  DeveloperContract.prototype.get = async function() {
     log.options.tags = ['log', '<<level>>'];
     try {
+      console.info('process.env.table_region', process.env.DYNAMODB_TABLE_DEVELOPER_CONTRACT_REGION)
         const contract = await dynamo.qetFromDBRegion({
             TableName: process.env.DYNAMODB_TABLE_DEVELOPER_CONTRACT,
             Key: {
                 chainDeveloperuuid: this.chainDeveloperuuid,
                 contractId: this.contractId
             }
-        }, process.env.table_region);
+        }, process.env.DYNAMODB_TABLE_DEVELOPER_CONTRACT_REGION);
+
+        console.info('DeveloperContract.prototype.get:', contract)
 
         this.fill(contract);
 
