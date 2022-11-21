@@ -16,6 +16,7 @@ provider:
     ACCOUNTID: ${file(config.${self:provider.stage}.json):AWS_ACT_ID} 
     ALCHEMY_API_KEY: ${file(config.${self:provider.stage}.json):ALCHEMY_API_KEY} 
     ALCHEMY_HTTP: ${file(config.${self:provider.stage}.json):ALCHEMY_HTTP} 
+    IPFS_PUBLIC_URL: ${file(config.${self:provider.stage}.json):IPFS_PUBLIC_URL}
     IPFS_PROJECT_ID: ${file(config.${self:provider.stage}.json):IPFS_PROJECT_ID}
     IPFS_PROJECT_KEY: ${file(config.${self:provider.stage}.json):IPFS_PROJECT_KEY}
     IPFS_PORT: ${file(config.${self:provider.stage}.json):IPFS_PORT}

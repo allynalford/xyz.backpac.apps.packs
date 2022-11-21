@@ -16,6 +16,7 @@
 "NFT_PORT_API_KEY" : "147977c7-878b-49d5-b28f-7cc9df50d283",
 "ETH_NETWORK" : "goerli",
 "ETH_NETWORK_ID" : 5,
+"IPFS_PUBLIC_URL" : "https://ipfs.io/ipfs/",
 "IPFS_PROJECT_ID": "2Hk8cwozijUyq2fvwRdxVpW6JE2",
 "IPFS_PROJECT_KEY": "7f5db5d9b14451b7396f565b2987bc29",
 "IPFS_PORT": 5001,

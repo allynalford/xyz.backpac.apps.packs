@@ -38,23 +38,21 @@ function IPFS(_IPFS_PROJECT_ID, _IPFS_PROJECT_KEY) {
 }
 
 /**
- * get an image by URL
+ * get an image by URL and add it to S3
  *
  * @author Allyn j. Alford <Allyn@backpac.xyz>
  * @async
+ * @param {String} url - URL of the image or file
+ * @param {String} Key Key to store the file in S3 under 
  * @function getImageByUrl
- * @requires module:Buffer
+ * @requires module:axios
+ * @requires module:aws-sdk/client-s3
  * @example <caption>Example usage of getAuth.</caption>
  * @return {Promise<String>} Automation Object
  */
 IPFS.prototype.getImageByUrl = async function (url, Key) {
-  const {
-    S3Client,
-    PutObjectCommand,
-    GetObjectCommand,
-  } = require("@aws-sdk/client-s3");
-  const { getSignedUrl } = require("@aws-sdk/s3-request-presigner");
-  const Axios = require('axios')
+  const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+  const Axios = require("axios");
   const response = await Axios({
     url,
     decompress: false,
@@ -76,75 +74,109 @@ IPFS.prototype.getImageByUrl = async function (url, Key) {
     })
   );
 
-//   return await getSignedUrl(
-//     s3,
-//     new GetObjectCommand({ Bucket: process.env.ASSET_UPLOAD_BUCKET, Key }),
-//     { expiresIn: 120 * 60 }
-//   ); // expires in seconds
+  return Key;
+};
 
-return Key;
-};;
+/**
+ * get an image by URL and add it to S3
+ *
+ * @author Allyn j. Alford <Allyn@backpac.xyz>
+ * @async
+ * @param {NFTMetadata} metadata - URL of the image or file
+ * @function getImageByUrl
+ * @requires module:aws-sdk/client-s3
+ * @example <caption>Example usage of getAuth.</caption>
+ * @return {Promise<String>} Automation Object
+ */
+ IPFS.prototype.addMetadata = async function (metadata, Key) {
+    const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+
+    this.key = Key;
+  
+    const s3 = new S3Client({
+      region: process.env.REGION,
+      apiVersion: process.env.S3_API_VERSION,
+    });
+
+    var buf = Buffer.from(JSON.stringify(metadata));
+
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: process.env.ASSET_UPLOAD_BUCKET,
+        Key,
+        Body: buf,
+        ContentEncoding: 'base64',
+        ContentType: 'application/json',
+      })
+    );
+  
+    return Key;
+  };
 
 
 
 /**
- * add Image to IPFS by URL
+ * add Image to IPFS by from S3
  *
  * @author Allyn j. Alford <Allyn@backpac.xyz>
  * @async
  * @function getAuth
- * @requires module:Buffer
+ * @requires module:aws-sdk
+ * @requires module:axios
  * @example <caption>Example usage of addByUrl.</caption>
  * @return {Promise<Array>} Array Object 
  * {
-  path: 'ipfs-logo.svg',
-  cid: CID('QmTqZhR6f7jzdhLgPArDPnsbZpvvgxzCZycXK7ywkLxSyU'),
+  Name: 'ipfs-logo.svg',
+  Hash: CID('QmTqZhR6f7jzdhLgPArDPnsbZpvvgxzCZycXK7ywkLxSyU'),
   size: 3243
   }
  */
- IPFS.prototype.addKey = async function (Key) {
-    const Axios = require('axios')
-    const AWS = require('aws-sdk');
-    const s3 = new AWS.S3({region: process.env.REGION, apiVersion: process.env.S3_API_VERSION});
-
-    const readStream =  s3.getObject({
-        Key,
-        Bucket: process.env.ASSET_UPLOAD_BUCKET,
-      }).createReadStream();
+ IPFS.prototype.addKey = async function () {
+   const Axios = require("axios");
+   const AWS = require("aws-sdk");
 
 
-//    const httpResp = await Axios({
-//     baseURL: `${process.env.IPFS_GATEWAY_HOST}:${process.env.IPFS_PORT}`,
-//     url: `/api/v0/add`,
-//     method: "POST",
-//     headers: {
-//         authorization: 'Basic ' + Buffer.from(process.env.IPFS_PROJECT_ID + ':' + process.env.IPFS_PROJECT_KEY).toString('base64'),
-//     },
-// });
+   const s3 = new AWS.S3({
+     region: process.env.REGION,
+     apiVersion: process.env.S3_API_VERSION,
+   });
 
-  // const stream = await response.Body;
+   const readStream = s3
+     .getObject({
+       Key: this.key,
+       Bucket: process.env.ASSET_UPLOAD_BUCKET,
+     })
+     .createReadStream();
 
+   const FormData = require("form-data");
+   const formData = new FormData();
 
+   formData.append("content", readStream);
 
-   //console.log(stream)
-    const http = require('http');
-    const Agent = new http.Agent({ });
-    const FormData = require('form-data');
-    const formData = new FormData();
-    formData.append('content', readStream);
-    let headers = formData.getHeaders();
-        headers.authorization = 'Basic ' + Buffer.from(process.env.IPFS_PROJECT_ID + ':' + process.env.IPFS_PROJECT_KEY).toString('base64');
-        headers['User-Agent'] = 'xyz.backpac.apps.packs';
-      console.log(headers);
-        
-    const res = await Axios.post(`${process.env.IPFS_GATEWAY}/api/v0/add`, formData, {
-        // You need to use `getHeaders()` in Node.js because Axios doesn't
-        // automatically set the multipart form boundary in Node.
-        headers
-    });
+   let headers = formData.getHeaders();
+
+   headers.authorization =
+     "Basic " +
+     Buffer.from(
+       process.env.IPFS_PROJECT_ID + ":" + process.env.IPFS_PROJECT_KEY
+     ).toString("base64");
 
 
-   return await res;
+   headers["User-Agent"] = "xyz.backpac.apps.packs";
+
+   const ipfsUpload = await Axios.post(
+     `${process.env.IPFS_GATEWAY}/api/v0/add`,
+     formData,
+     {
+       headers,
+     }
+   );
+
+   this.name = ipfsUpload.data.Name;
+   this.hash = ipfsUpload.data.Hash
+   this.size = ipfsUpload.data.Size;
+
+   return await ipfsUpload.data;
  };
 
 

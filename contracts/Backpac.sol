@@ -14,7 +14,7 @@ contract BackpacV1 is ERC721, Ownable, ERC721URIStorage {
 
     uint256 MAX_SUPPLY = 10000;
     uint256 public mintPrice = 0.000 ether;
-    string BASE_URI = "https://ipfs.filebase.io/ipfs/";
+    string BASE_URI = "https://ipfs.io/ipfs/";
 
     constructor(string memory name_, string memory symbol_, uint256 supply_, uint256 mintPrice_, string memory baseURI_) ERC721(name_, symbol_) {
         MAX_SUPPLY = supply_;

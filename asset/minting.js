@@ -10,24 +10,32 @@ CustomError.prototype = new Error();
 
 
 module.exports.mintStart = async (event) => {
-  let req, dt, developeruuid, image, external_url, description, name, attributes, background_color, animation_url, youtube_url;
+  let req, dt, developeruuid, contractAddress, image, external_url, description, name, attributes, background_color, animation_url, youtube_url;
   try {
     req = event.body !== "" ? JSON.parse(event.body) : event;
     //req = event;
     log.options.tags = ["log", "<<level>>"];
     dt = dateFormat(new Date(), "isoUtcDateTime");
 
+    //Required
     developeruuid = req.developeruuid;
-    image = req.image;
-    external_url = req.external_url;
+    contractId = req.contractId;
+    image = req.image; //Public URL of image for NFT
     description = req.description;
     name = req.name;
-    attributes = req.attributes;
-    background_color = req.background_color;
+
+
+    attributes = req.attributes; //Attributes of NFT
+    external_url = req.external_url; //External URL of collection
+    background_color = req.background_color; //Background color for display
     animation_url = req.animation_url;
     youtube_url = req.youtube_url;
 
+    if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
+    if (typeof contractId === "undefined") throw new Error("contractId is undefined");
     if (typeof image === "undefined") throw new Error("image is undefined");
+    if (typeof name === "undefined") throw new Error("name is undefined");
+    if (typeof description === "undefined") throw new Error("description is undefined");
 
 
   } catch (e) {
@@ -37,28 +45,51 @@ module.exports.mintStart = async (event) => {
   }
 
   try {
-  
-    const NFTMetadata = require('../model/NFTMetadata');
-    let metadata = new NFTMetadata(image, null, external_url, description, name, attributes, background_color, animation_url, youtube_url);
-
     var url = require("url");
-    var parsed = url.parse(image);
+    var path = require('path')
   
-
-
     const IPFS = require('../model/IPFS');
+
+    //IPFS object for the image
     const ipfs = new IPFS();
 
-    const imageKey = await ipfs.getImageByUrl(image, `${developeruuid}/${parsed.pathname.replace('/','')}`);
+    //We need a unqiuekey for the image and the JSON file
+    //We use the dev uuid and the contractId as the folders
+    const key = `${developeruuid}/${contractId}`;
 
-    console.log('imageKey', imageKey);
+    //Use the name as the file name for the JSON and image file
+    const fileName = name.replace(' ', '-');
+
+    //Down the file from the URL and add it to S3
+    await ipfs.getImageByUrl(image, `${key}/${fileName}${ext}`);
+
+    //Upload the file image from s3 to IPFS
+    await ipfs.addKey();
+
+    //Build the metadata for the NFT
+    const NFTMetadata = require('../model/NFTMetadata');
+
+    //Build the URL for the image within the metadata
+    const nftImage = process.env.IPFS_PUBLIC_URL + ipfs.hash;
+
+    //Pass all info to the object for creation
+    let metadata = new NFTMetadata(nftImage, null, external_url, description, name, attributes, background_color, animation_url, youtube_url);
+    
+    //Build the IPFS object for the metadata
+    const metedataIPFS = new IPFS();
+
+    //Add the metadata to S3 for the image
+    await metedataIPFS.addMetadata(metadata, `${key}/${fileName}.json`);
+
+    //Add the metadata to IPFS from s3
+    await metedataIPFS.addKey();
+
+    const metadataUrl = "https://ipfs.io/ipfs/" + metedataIPFS.hash;
+
+    console.log(metadataUrl);
 
 
-    const uploaded = await ipfs.addKey(imageKey);
-
-
-    console.log(uploaded);
-
+    return {metadataUrl, fileuuid, ready: "true", dt}
 
   } catch (e) {
     console.error(e);
