@@ -71,8 +71,8 @@ module.exports.mintStart = async (event) => {
 module.exports.assetMetaData = async (event) => {
   let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
   try {
-    //req = event.body !== "" ? JSON.parse(event.body) : event;
-    req = event;
+    req = event.body !== "" ? JSON.parse(event.body) : event;
+    //req = event;
     log.options.tags = ["log", "<<level>>"];
     dt = dateFormat(new Date(), "isoUtcDateTime");
 
@@ -108,8 +108,15 @@ module.exports.assetMetaData = async (event) => {
     //init object
     const mint = new Mint(developeruuid, chain, null, null, mintId);
 
+    console.info('Getting Mint');
     //fill object from database
     await mint.get();
+
+    //console.log(mint);
+
+    await mint._updateFields(mint, [
+      { name: "stage", value: "META_DATA"},
+    ]);
 
     //Set values from mint
     const {
@@ -136,7 +143,7 @@ module.exports.assetMetaData = async (event) => {
 
     //need the path module to get the file ext
     var path = require('path');
-
+    console.info('Building Keys');
     //Image
     const imageKey = `${developeruuid}/${contractId}/${fileName}${path.extname(image)}`;
 
@@ -185,8 +192,7 @@ module.exports.assetMetaData = async (event) => {
       { name: "metadata", value: metadata },
       { name: "metadataURL", value: metedataIPFS.getPublicURL() },
       { name: "metadataKey", value: metedataIPFS.getKey()},
-      { name: "metadataCID", value: metedataIPFS.getHash()},
-      { name: "STAGE", value: "METADATA"},
+      { name: "metadataCID", value: metedataIPFS.getHash()}
     ]);
 
 
@@ -239,6 +245,12 @@ module.exports.estimateFees = async (event) => {
 
     //console.log('_DeveloperPack', _DeveloperPack);
 
+    //check the wallet balanace
+    const ethers = require('ethers');
+
+    const signer = new ethers.Wallet(_DeveloperPack.pv); 
+    
+
 
     //Let's grab the mint we are processing
 
@@ -251,7 +263,11 @@ module.exports.estimateFees = async (event) => {
     //fill object from database
     await mint.get();
 
-    console.log(mint)
+    await mint._updateFields(mint, [
+      { name: "stage", value: "ESTIMATING"},
+    ]);
+
+    //console.log(mint)
 
     //Set values from mint
     const { contractId } = mint;
@@ -262,35 +278,92 @@ module.exports.estimateFees = async (event) => {
     const _DeveloperContract = new DeveloperContract(developeruuid, chain, contractId);
     await _DeveloperContract.get();
 
-    console.log('_DeveloperContract', _DeveloperContract);
+    //console.log('_DeveloperContract', _DeveloperContract);
 
-    //check the wallet balanace
-    const ethers = require('ethers');
+
+
+    const User = require('../model/User');
+
+    let user = {};
+
+    //Check if the process is by email or wallet
+    if(mint.recipientType === "email"){
+      //Build the object
+      user = new User(undefined, undefined, mint.recipient, undefined, undefined, undefined);
+      //Fill will data
+      await user.getByEmail();
+    }else{
+      user = new User({address: mint.recipient});
+    }
+
+    console.log('recipient address', user.address);
+
+    //Update the mint to the address of the user
+    await mint._updateFields(mint, [
+      { name: "recipientAddress", value: user.address },
+    ]);
     
+    
+    //Build a connection to the chain
+    let provider = new ethers.providers.JsonRpcProvider(process.env.ALCHEMY_HTTP,)
+    //let provider =  new ethers.providers.AlchemyProvider(process.env.STAGE, process.env.ALCHEMY_API_KEY);
 
-    let provider =  new ethers.providers.AlchemyProvider(process.env.STAGE, process.env.ALCHEMY_API_KEY);
+    //Get the balance of the minting wallet
     const balance = await provider.getBalance(_DeveloperPack.as);
 
+    //Convert the balance to be readable
     const addressBalance = ethers.utils.formatEther(balance)
     
-
+    //Print the balance
     console.info(`Address Balance( ${_DeveloperPack.as}):`, addressBalance);
 
-
+    //We need the data for the contract we are interacting with
     const contractData =  require("../contracts/Backpac.json");
 
+    //Connect the wallet to the chain
+    const account = signer.connect(provider);
 
-    const contract = new ethers.Contract(_DeveloperContract.contractAddress, contractData.abi, provider);
-    const estimatedGas = await contract.estimateGas.safeMint(mint.recipient, mint.metadataCID)
+    //Build the contract interface
+    const contract = new ethers.Contract(_DeveloperContract.contractAddress, contractData.abi, account);
 
-
+    //Set the gas limit for the transaction
     
+    const gas_price = await provider.getGasPrice();
+
+    let gas_limit = gas_price * 2;
+
+    //Print the gas
+    console.info('gas_price', ethers.utils.formatEther(gas_price));
+
+    //Start the estimate
+    console.info('Estimating.....');
+
+    const estimatedGas = await contract.estimateGas.safeMint(
+      user.address,
+      mint.metadataCID,
+      {
+        gasLimit: ethers.utils.hexlify(gas_limit),
+        nonce: await provider.getTransactionCount(_DeveloperPack.as, "latest"),
+        value: 0,
+        gasPrice: gas_price,
+      }
+    );
+
+
+    await mint._updateFields(mint, [
+      { name: "estimatedGas", value: estimatedGas},
+    ]);
 
     const gasEstimate = ethers.utils.formatEther(estimatedGas);
 
-    console.info('gasEstimate', gasEstimate);
+    await mint._updateFields(mint, [
+      { name: "estimatedGas", value: gasEstimate},
+    ]);
+   
+    console.info('Gas Estimate vs Balance', {gasEstimate, addressBalance});
+    //console.info('Gas Balance Needed', {gasNeeded: (gasEstimate * gas_limit), addressBalance});
 
-    return false
+    let transferred = "false";
 
     //if user wallet has less then the gas Estimate, top them up
     if (addressBalance <= gasEstimate) {
@@ -309,26 +382,26 @@ module.exports.estimateFees = async (event) => {
 
       console.log(gas_price);
 
-      let gas_limit = "0x100000";
+  
 
-      const tx = {
+      const tx = await walletSigner.sendTransaction({
         from: _PackMaster.as,
         to: _DeveloperPack.as,
-        value: ethers.utils.parseEther(gasEstimate),
+        value: ethers.utils.parseEther(gasEstimate + 0.001),
         nonce: await provider.getTransactionCount(_PackMaster.as, "latest"),
         gasLimit: ethers.utils.hexlify(gas_limit), // 100000
         gasPrice: gas_price,
-      };
+      });
 
-      const sent = await walletSigner.sendTransaction(tx);
+      console.log(tx);
 
-      console.log(sent);
+      transferred = "true";
     }else{
       console.info("User can cover deployment", {addressBalance, gasEstimate})
     }
    
 
-    return {hasGas: "true", dt, chainDeveloperuuid, contractId, developeruuid};
+    return {hasGas: "true", transferred, dt, chainDeveloperuuid, contractId, developeruuid};
 
   }catch (e) {
     console.error(e);
@@ -339,18 +412,21 @@ module.exports.estimateFees = async (event) => {
 };
 
 
-
-module.exports.createDeveloperWallet = async (event) => {
-  let req, dt, chain, developeruuid, name;
+module.exports.mint = async (event) => {
+  let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
   try {
-    //req = event.body !== "" ? JSON.parse(event.body) : event;
-    req = event;
+    req = event.body !== "" ? JSON.parse(event.body) : event;
+    //req = event;
     dt = dateFormat(new Date(), "isoUtcDateTime");
     developeruuid = req.developeruuid;
-    chain = req.chain;
+    mintId = req.mintId;
+    chainDeveloperuuid = req.chainDeveloperuuid;
+    username = req.username;
 
     if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
-    if (typeof chain === "undefined") throw new Error("chain is undefined");
+    if (typeof chainDeveloperuuid === "undefined") throw new Error("chainDeveloperuuid is undefined");
+    if (typeof mintId === "undefined") throw new Error("mintId is undefined");
+    if (typeof username === "undefined") throw new Error("username is undefined");
 
   } catch (e){
     console.error(e);
@@ -359,22 +435,159 @@ module.exports.createDeveloperWallet = async (event) => {
   }
 
   try {
-   
-    const DeveloperPack = require('../model/DeveloperPack');
+    const DeveloperPack = require("../model/DeveloperPack");
+    const chain = chainDeveloperuuid.split(":")[0];
 
-    console.log('Creating Backpac for:', {chain, developeruuid});
+    console.log("Getting Backpac for:", { chain, developeruuid });
 
     const _DeveloperPack = new DeveloperPack(chain, developeruuid);
 
-    const wallet = await _DeveloperPack.createWallet();
+    await _DeveloperPack.setHash();
+    await _DeveloperPack.get();
 
     //console.log('_DeveloperPack', _DeveloperPack);
 
-    console.log('wallet Address', wallet.address);
+    //check the wallet balanace
+    const ethers = require("ethers");
+
+    //Create a signer from the wallet
+    const signer = new ethers.Wallet(_DeveloperPack.pv);
+
+    //Let's grab the mint we are processing
+
+    //init module
+    const Mint = require("../model/Mint");
+
+    //init object
+    const mint = new Mint(developeruuid, chain, null, null, mintId);
+
+    //fill object from database
+    await mint.get();
+
+    //console.log(mint);
+
+    await mint._updateFields(mint, [
+      { name: "stage", value: "MINTING"},
+    ]);
+
+    //Set values from mint
+    const { contractId } = mint;
+
+    const DeveloperContract = require("../model/DeveloperContract");
+    const _DeveloperContract = new DeveloperContract(
+      developeruuid,
+      chain,
+      contractId
+    );
+    await _DeveloperContract.get();
+
+    //console.log('_DeveloperContract', _DeveloperContract);
+
+    let provider = new ethers.providers.AlchemyProvider(
+      process.env.STAGE,
+      process.env.ALCHEMY_API_KEY
+    );
+    const balance = await provider.getBalance(_DeveloperPack.as);
+
+    const addressBalance = ethers.utils.formatEther(balance);
+
+    console.info(`Address Balance( ${_DeveloperPack.as}):`, addressBalance);
+
+    const contractData = require("../contracts/Backpac.json");
+
+    const account = signer.connect(provider);
+
+    const contract = new ethers.Contract(
+      _DeveloperContract.contractAddress,
+      contractData.abi,
+      account
+    );
+
+    let gas_limit = "0x500000";
+    const gas_price = await provider.getGasPrice();
+
+    console.info("gasEstimate", mint.estimatedGas);
+
+    //let gas_limit = gas_price.mul(1);
+    //let gas_limit = gas_price;
+
+    console.info("gas_price", ethers.utils.formatEther(gas_price));
+    console.info("gas_limit", ethers.utils.formatEther(gas_limit));
+
+    console.info("Minting Asset..... to: ", mint.recipientAddress);
+
+    const mintAssetTx = await contract.safeMint(
+      mint.recipientAddress,
+      mint.metadataCID,
+      {
+        gasLimit: ethers.utils.hexlify(gas_limit),
+        nonce: await provider.getTransactionCount(_DeveloperPack.as, "latest"),
+        value: 0,
+        gasPrice: gas_price,
+      }
+    );
+
+    console.log('Mint Asset Tx', mintAssetTx);
+
+    //Update the mint to the address of the user
+    await mint._updateFields(mint, [
+      { name: "txHash", value: mintAssetTx.hash },
+    ]);
+
+    const receipt = await mintAssetTx.wait();
+
+    console.info("receipt", receipt);
+    console.info("transactionHash", receipt.transactionHash);
+
+    // //Update the mint to the address of the user
+    await mint._updateFields(mint, [
+      { name: "stage", value: "MINTED" },
+    ]);
+
+    
+
+     const alchemy = require("../common/alchemy");
+     const _ = require("lodash");
+
+     const transfers = await alchemy.getAssetTransfers(mint.recipientAddress, [_DeveloperContract.contractAddress]);
+
+     const transferTx = _.find(transfers.transfers, { 'hash': mintAssetTx.hash });
+
+     console.log(BigInt(transferTx.tokenId).toString());
+
+     const tokenId = BigInt(transferTx.tokenId).toString()
+
+     await mint._updateFields(mint, [
+      { name: "tokenId", value: tokenId },
+     ]);
+
+     const DigitalAsset = require("../model/DigitalAsset");
+     const asset = new DigitalAsset(
+       chain,
+       _DeveloperContract.contractAddress,
+       typeof erc721TokenId !== "undefined" ? "erc721" : "erc1155",
+       tokenId,
+       null,
+       mint.description,
+       mint.name,
+       mint.hash,
+       mint.external_url,
+       mint.attributes,
+       mint.animation_url,
+       mint.youtube_url
+     );
+
+     const minted = true;
 
 
-    return { error: false, success: true, dt};
-
+    return {
+      hasGas: "true",
+      minted,
+      dt,
+      chainDeveloperuuid,
+      contractId,
+      developeruuid,
+    };
   }catch (e) {
     console.error(e);
     const error = new CustomError("HandledError", e.message);

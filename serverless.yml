@@ -15,7 +15,12 @@ provider:
     REGION: ${opt:region, self:provider.region}
     ACCOUNTID: ${file(config.${self:provider.stage}.json):AWS_ACT_ID} 
     ALCHEMY_API_KEY: ${file(config.${self:provider.stage}.json):ALCHEMY_API_KEY} 
+    ALCHEMY_POLY_API_KEY: ${file(config.${self:provider.stage}.json):ALCHEMY_POLY_API_KEY} 
     ALCHEMY_HTTP: ${file(config.${self:provider.stage}.json):ALCHEMY_HTTP} 
+    ALCHEMY_POLY_BASE_URL: ${file(config.${self:provider.stage}.json):ALCHEMY_POLY_BASE_URL}
+    ALCHEMY_POLY_BASE_API_URL: ${file(config.${self:provider.stage}.json):ALCHEMY_POLY_BASE_API_URL}
+    ALCHEMY_POLY_HTTP: ${file(config.${self:provider.stage}.json):ALCHEMY_POLY_HTTP}
+    ALCHEMY_POLY_WSS: ${file(config.${self:provider.stage}.json):ALCHEMY_POLY_WSS}
     IPFS_PUBLIC_URL: ${file(config.${self:provider.stage}.json):IPFS_PUBLIC_URL}
     IPFS_PROJECT_ID: ${file(config.${self:provider.stage}.json):IPFS_PROJECT_ID}
     IPFS_PROJECT_KEY: ${file(config.${self:provider.stage}.json):IPFS_PROJECT_KEY}
@@ -35,6 +40,8 @@ provider:
     DYNAMODB_TABLE_BACKPAC_INDEX: ${self:service}-${opt:stage, self:provider.stage}-backpac-address-index
     DYNAMODB_TABLE_DEVELOPER_MINT: backpac-api-${opt:stage, self:provider.stage}-developer-mint
     DYNAMODB_TABLE_DEVELOPER_CONTRACT: backpac-api-${opt:stage, self:provider.stage}-developer-contract
+    DYNAMODB_TABLE_USER_CLAIMABLE: ${self:service}-${opt:stage, self:provider.stage}-user-claimable
+    DYNAMODB_TABLE_USER_CLAIMABLE_INDEX: ${self:service}-${opt:stage, self:provider.stage}-user-claimable-chainContractAddress-index
     DYNAMODB_TABLE_USER: backpac-${opt:stage, self:provider.stage}-user
     DYNAMODB_TABLE_USER_EMAIL_ISSUER_INDEX: backpac-${opt:stage, self:provider.stage}-user-email-issuer-index
     DYNAMODB_TABLE_DEVELOPER_CONTRACT_REGION: us-east-1
@@ -230,6 +237,42 @@ resources:
               ReadCapacityUnits: ${self:custom.tableThroughput}
               WriteCapacityUnits: ${self:custom.tableThroughput}  
         TableName: ${self:provider.environment.DYNAMODB_TABLE_BACKPAC}
+    UserClaimableDynamoDBTable:
+      Type: 'AWS::DynamoDB::Table'
+      Properties:
+        AttributeDefinitions:
+          -
+            AttributeName: email
+            AttributeType: S
+          -  
+            AttributeName: mintId
+            AttributeType: S
+          -  
+            AttributeName: chainContractAddress
+            AttributeType: S
+        KeySchema:
+          -
+            AttributeName: email
+            KeyType: HASH
+          -
+            AttributeName: mintId
+            KeyType: RANGE      
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        GlobalSecondaryIndexes:
+          - IndexName: ${self:provider.environment.DYNAMODB_TABLE_USER_CLAIMABLE_INDEX}
+            KeySchema:
+              - AttributeName: chainContractAddress
+                KeyType: HASH
+              - AttributeName: email
+                KeyType: RANGE
+            Projection:
+              ProjectionType: ALL
+            ProvisionedThroughput:
+              ReadCapacityUnits: ${self:custom.tableThroughput}
+              WriteCapacityUnits: ${self:custom.tableThroughput}  
+        TableName: ${self:provider.environment.DYNAMODB_TABLE_USER_CLAIMABLE}
 custom:
    tableThroughput: 1
    prune:

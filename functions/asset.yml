@@ -16,6 +16,12 @@ mintStart:
         - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
+  # events:
+  #   - http:
+  #       path: asset/minting/start
+  #       method: post 
+  #       authorizer: aws_iam
+  #       cors: true
 assetMetaData:
   handler: asset/minting.assetMetaData
   memorySize: 128
@@ -41,6 +47,14 @@ assetMetaData:
         - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
+  events:
+    - http:
+        path: asset/minting/metadata
+        method: post 
+        authorizer: aws_iam
+        cors: true
+  environment:
+    table_region: us-east-1 
 mintAssetEstimateFees:
   handler: asset/minting.estimateFees
   memorySize: 256
@@ -59,6 +73,14 @@ mintAssetEstimateFees:
         - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
+  events:
+    - http:
+        path: asset/minting/estimate
+        method: post 
+        authorizer: aws_iam
+        cors: true
+  environment:
+      table_region: us-east-1 
 mintAsset:
   handler: asset/minting.mint
   memorySize: 256
@@ -84,47 +106,57 @@ mintAsset:
         - dynamodb:UpdateItem
       Resource: 
         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
-  environment:
-      table_region: us-east-1      
-mintAssetStop:
-  handler: asset/minting.stop
-mintTest:
-  handler: asset/minting.estimateFees
-  memorySize: 256
-  timeout: 300
-  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintTest-role
-  iamRoleStatements:
-    - Effect: Allow
-      Action:
-        - dynamodb:DescribeTable
-        - dynamodb:GetItem
-        - dynamodb:UpdateItem
-      Resource: 
-        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
-    - Effect: "Allow"
-      Action:
-        - s3:GetObject
-        - s3:PutObject
-      Resource: 
-        - "arn:aws:s3:::${opt:stage, self:provider.stage}:${self:provider.environment.ASSET_UPLOAD_BUCKET}/*"
-    - Effect: Allow
-      Action:
-        - dynamodb:DescribeTable
-        - dynamodb:GetItem
-        - dynamodb:UpdateItem
-      Resource: 
-        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
-    - Effect: Allow
-      Action:
-        - dynamodb:DescribeTable
-        - dynamodb:GetItem
-      Resource: 
-        - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
-  environment:
-    table_region: us-east-1 
   events:
     - http:
-        path: asset/minting/estimate
+        path: asset/minting/
         method: post 
         authorizer: aws_iam
         cors: true
+  environment:
+      table_region: us-east-1      
+mintAssetTxWait:
+  handler: asset/minting.mint
+  memorySize: 256
+  timeout: 900 
+mintAssetStop:
+  handler: asset/minting.stop
+# mintTest:
+#   handler: asset/minting.estimateFees
+#   memorySize: 256
+#   timeout: 300
+#   iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintTest-role
+#   iamRoleStatements:
+#     - Effect: Allow
+#       Action:
+#         - dynamodb:DescribeTable
+#         - dynamodb:GetItem
+#         - dynamodb:UpdateItem
+#       Resource: 
+#         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
+#     - Effect: "Allow"
+#       Action:
+#         - s3:GetObject
+#         - s3:PutObject
+#       Resource: 
+#         - "arn:aws:s3:::${opt:stage, self:provider.stage}:${self:provider.environment.ASSET_UPLOAD_BUCKET}/*"
+#     - Effect: Allow
+#       Action:
+#         - dynamodb:DescribeTable
+#         - dynamodb:GetItem
+#         - dynamodb:UpdateItem
+#       Resource: 
+#         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
+#     - Effect: Allow
+#       Action:
+#         - dynamodb:DescribeTable
+#         - dynamodb:GetItem
+#       Resource: 
+#         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
+#   environment:
+#     table_region: us-east-1 
+#   events:
+#     - http:
+#         path: asset/minting/estimate
+#         method: post 
+#         authorizer: aws_iam
+#         cors: true

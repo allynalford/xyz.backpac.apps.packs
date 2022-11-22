@@ -36,6 +36,19 @@ definition:
       Type: Task
       Resource: 
         Fn::GetAtt: [collectionDeploy, Arn]
+      Next: CollectionDeployChoiceState
+    CollectionDeployChoiceState:
+      Type: Choice
+      Choices:
+      - Variable: "$.stage"
+        StringEquals: "DEPLOYING"
+        Next: CollectionDeployTxWaitState
+      - Variable: "$.stage"
+        StringEquals: "DEPLOYED"
+        Next: Stop
+    CollectionDeployTxWaitState:
+      Type: Wait
+      Seconds: 390
       Next: Stop
     Stop:
       Type: Task

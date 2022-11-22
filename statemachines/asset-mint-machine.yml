@@ -22,7 +22,16 @@ definition:
       Type: Task
       Resource: 
         Fn::GetAtt: [assetMetaData, Arn]
-      Next: EstimateFeesState
+      Next: AssetMetadataChoiceState
+    AssetMetadataChoiceState:
+      Type: Choice
+      Choices:
+      - Variable: "$.ready"
+        StringEquals: "true"
+        Next: EstimateFeesState
+      - Variable: "$.ready"
+        StringEquals: "false"
+        Next: Stop
     EstimateFeesState:
       Type: Task
       Resource: 
@@ -45,11 +54,25 @@ definition:
       Type: Task
       Resource: 
         Fn::GetAtt: [mintAsset, Arn]
-      Next: AssetMintTxWaitState
+      Next: AssetMintChoiceState
+    AssetMintChoiceState:
+      Type: Choice
+      Choices:
+      - Variable: "$.minted"
+        StringEquals: "true"
+        Next: Stop
+      - Variable: "$.minted"
+        StringEquals: "false"
+        Next: AssetMintTxWaitState
     AssetMintTxWaitState:
       Type: Wait
       Seconds: 180
-      Next: Stop
+      Next: AssetMintTxState
+    AssetMintTxState:
+      Type: Task
+      Resource: 
+        Fn::GetAtt: [mintAssetTxWait, Arn]
+      Next: AssetMintChoiceState
     Stop:
       Type: Task
       Resource: 

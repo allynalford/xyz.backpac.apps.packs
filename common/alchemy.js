@@ -3,7 +3,7 @@
 /* jshint -W097 */
 "use strict";
 
-const endpoint = require('../common/endpoint');
+const endpoint = require('./endpoint');
 const alchemySDK = require('@alch/alchemy-sdk');
 
 // replace with your Alchemy api key
@@ -32,6 +32,49 @@ function expired(date) {
   console.log(diffMins);
   return (diffMins < 3 ? false : true);
 }
+
+
+/**
+* Gets all NFTs currently owned by a given address
+* This endpoint is supported on the following chains and networks:
+* Ethereum: Mainnet, Rinkeby, Kovan, Goerli, Ropsten
+* Polygon: Mainnet and Mumbai
+* Flow: Mainnet and Testnet (see docs here)
+*
+* @author Allyn j. Alford <Allyn@backpac.xyz>
+* @async
+* @function getAssetTransfers
+* @param {String} chain - ETHEREUM|FLOW|TEZOS|POLYGON|SOLANA
+* @param {String} address -  address for NFT owner (can be in ENS format!)
+* @param {Array} contractAddresses -  address for NFT owner (can be in ENS format!)
+* @return {Promise<Array>} Response Array
+*/
+module.exports.getAssetTransfers = async (toAddress, contractAddresses) => {
+  try {
+
+    const { Alchemy, Network } = require("alchemy-sdk");
+    const _alchemy = new Alchemy({
+      apiKey: process.env.ALCHEMY_API_KEY, 
+      network: Network.ETH_GOERLI 
+    });
+
+    const latestBlock = await _alchemy.core.getBlockNumber();
+    console.log("The latest block number is", latestBlock);
+
+
+    return await _alchemy.core.getAssetTransfers({
+      toAddress,
+      contractAddresses,
+      excludeZeroValue: true,
+      category: ["erc721", "erc1155", "specialnft"],
+    });
+
+  } catch (e) {
+      console.error(e);
+      throw e;
+  }
+};
+
 
 /**
 * Gets all NFTs currently owned by a given address

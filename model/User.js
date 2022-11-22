@@ -17,10 +17,10 @@ const dynamo = require('../common/dynamo');
  * @example <caption>Example usage of User Object.</caption>
  * @return {User} User Instance Object
  */
-function User(issuer, address, email, isMfaEnabled, phoneNumber, status) { 
-    this.did  = issuer.split(':')[0] + ':' + issuer.split(':')[1];
-    this.userId  = issuer;
-    this.address  = address;
+function User(issuer, address, email, isMfaEnabled, phoneNumber, status) {
+    this.did  = (typeof issuer !== "undefined" ? issuer.split(':')[0] + ':' + issuer.split(':')[1] : null)
+    this.userId  = issuer || null;
+    this.address  = address || null;
     this.email = email || null;
     this.isMfaEnabled = isMfaEnabled || null;
     this.phoneNumber = phoneNumber || null;
@@ -57,32 +57,27 @@ function User(issuer, address, email, isMfaEnabled, phoneNumber, status) {
             },
         }, process.env.table_region);
 
-        console.log(user)
+        //console.log(user)
 
         user = user[0];
 
+        this.fill(user[0])
 
-        try{
-            const venue = await this.getActiveVenue();
-            this.venue = Object.keys(venue).length === 0 ? null : venue;
-        }catch(e){
-            console.warn(e.message)
-        }
-
+        this.userId = user.issuer;
         this.address = user.address;
-        this.userUUID = user.userUUID;
-        this.email = user.email;
-        this.isMfaEnabled = user.isMfaEnabled;
-        this.phoneNumber = user.phoneNumber;
+        // this.userUUID = user.userUUID;
+        // this.email = user.email;
+        // this.isMfaEnabled = user.isMfaEnabled;
+        // this.phoneNumber = user.phoneNumber;
         this.status = user.status;
-        this.username = user.username;
-        this.external_link = user.external_link;
-        this.image_url = user.image_url;
-        this.timeStamp = user.timeStamp;
-        this.isoDate = user.isodate;
+        // this.username = user.username;
+        // this.external_link = user.external_link;
+        // this.image_url = user.image_url;
+
+        this.isoDate = user.isoDate;
         this.week = user.week;
-        this.created = user.createdatetime;
-        this.updatedAt = user.updatedat;
+        this.created = user.created;
+        this.updatedAt = user.updatedAt;
 
     } catch (e) {
         console.error(e);

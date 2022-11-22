@@ -315,7 +315,13 @@
 					}
 				],
 				"name": "safeMint",
-				"outputs": [],
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "_tokenId",
+						"type": "uint256"
+					}
+				],
 				"stateMutability": "payable",
 				"type": "function"
 			},
@@ -666,11 +672,11 @@
 			]
 		},
 		"contracts/Backpac.v1.sol": {
-			"keccak256": "0x8ef090221b48bf3292c4d13e964043151b22286be1ac7c9a2795219021afa9fe",
+			"keccak256": "0xd9fb182b1ffecb1b5bcd01f9ba67d4296e57833ad2725b2185c4428020df5ebb",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://1b2b223a757a7dc1b6cf263a21ecc789628b01887e9f88078d79306380e44337",
-				"dweb:/ipfs/QmZxb6t829QjQigm1DHtUgMNoLYyMJVC7wFPMidRUzhmoP"
+				"bzz-raw://f8b9685568b8da32bcbbe52583ec09d46810ca81b57b5bb26ebc367e6e69e2c9",
+				"dweb:/ipfs/QmXH1BfvtENDTG7nX5UWSN1rYGnQkw1it6fgLUf6UHgKiM"
 			]
 		}
 	},

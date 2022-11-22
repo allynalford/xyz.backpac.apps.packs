@@ -26,14 +26,15 @@ const dynamo = require('../common/dynamo');
  * @example <caption>Example usage of Mint Object.</caption>
  * @return {Mint} Contract Instance Object
  */
-function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId, image, description, name, external_url, attributes, background_color, animation_url, youtube_url) { 
+function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId, image, description, name, external_url, attributes, background_color, animation_url, youtube_url) {
     this.chainDeveloperuuid = chain + ":" + developeruuid;
     this.recipient = recipient || null,
     this.recipientType = recipientType || null,
-    this.mintId = mintId  || null;
+    this.recipientAddress = null;
+    this.mintId = mintId || null;
     this.developeruuid = developeruuid;
     this.contractId = contractId || null;
-    this.image =  image || null;
+    this.image = image || null;
 
     this.attributes = attributes || null;
     this.background_color = background_color || null;
@@ -45,8 +46,18 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
     this.name = name || null;
     this.stage = 'PENDING'
     this.description = description || null;
-    this.external_link =  external_url || null;
+    this.external_link = external_url || null;
     this.dt = dateFormat(new Date(), "isoUtcDateTime");
+
+    this.imageURL = null;
+    this.imageKey = null;
+    this.imageCID = null;
+    this.metadata = null;
+    this.metadataURL = null;
+    this.metadataKey = null;
+    this.metadataCID = null;
+    this.estimatedGas = null;
+
 }
 
 
@@ -60,7 +71,7 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
  * @example <caption>Example usage of get.</caption>
  * @return {Promise<Void>} 
  */
- Mint.prototype.get = async function() {
+Mint.prototype.get = async function () {
     log.options.tags = ['log', '<<level>>'];
     try {
         const mint = await dynamo.qetFromDBRegion({
@@ -72,6 +83,7 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
         }, process.env.table_region);
 
         this.fill(mint);
+
 
         this.timeStamp = mint.timeStamp || null;
         this.isoDate = mint.isodate || null;
@@ -96,43 +108,43 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
  * @requires module:dateformat
  * @example <caption>Example usage of save.</caption>
  */
- Mint.prototype._updateFields = async (mint, fields) => {
+Mint.prototype._updateFields = async (mint, fields) => {
     try {
-      const dateFormat = require("dateformat");
-      var ExpressionAttributeValues = {},
-        ExpressionAttributeNames = {};
-      var UpdateExpression = "set #dt = :dt";
- 
-      for (const f of fields) {
-        ExpressionAttributeValues[`:${f.name}`] = f.value;
-        ExpressionAttributeNames[`#${f.name}`] = f.name;
-        UpdateExpression = UpdateExpression + `, #${f.name} = :${f.name}`;
-      }
- 
-      ExpressionAttributeNames["#dt"] = "updatedAt";
-      ExpressionAttributeValues[":dt"] = dateFormat(
-        new Date(),
-        "isoUtcDateTime"
-      );
- 
-      //Save the profile to dynamoDB
-      return await dynamo.updateDBRegion({
-         TableName: process.env.DYNAMODB_TABLE_DEVELOPER_MINT,
-         Key: {
-             chainDeveloperuuid: mint.chainDeveloperuuid,
-             mintId: mint.mintId
-         },
-        UpdateExpression,
-        ExpressionAttributeValues,
-        ExpressionAttributeNames,
-        ReturnValues: "UPDATED_NEW",
-      },process.env.table_region);
+        const dateFormat = require("dateformat");
+        var ExpressionAttributeValues = {},
+            ExpressionAttributeNames = {};
+        var UpdateExpression = "set #dt = :dt";
+
+        for (const f of fields) {
+            ExpressionAttributeValues[`:${f.name}`] = f.value;
+            ExpressionAttributeNames[`#${f.name}`] = f.name;
+            UpdateExpression = UpdateExpression + `, #${f.name} = :${f.name}`;
+        }
+
+        ExpressionAttributeNames["#dt"] = "updatedAt";
+        ExpressionAttributeValues[":dt"] = dateFormat(
+            new Date(),
+            "isoUtcDateTime"
+        );
+
+        //Save the profile to dynamoDB
+        return await dynamo.updateDBRegion({
+            TableName: process.env.DYNAMODB_TABLE_DEVELOPER_MINT,
+            Key: {
+                chainDeveloperuuid: mint.chainDeveloperuuid,
+                mintId: mint.mintId
+            },
+            UpdateExpression,
+            ExpressionAttributeValues,
+            ExpressionAttributeNames,
+            ReturnValues: "UPDATED_NEW",
+        }, process.env.table_region);
     } catch (err) {
-      console.error(JSON.stringify(err));
-      log.error(err);
-      throw err;
+        console.error(JSON.stringify(err));
+        log.error(err);
+        throw err;
     }
-  };
+};
 
 /**
  * get the unique Mint Id name
@@ -143,7 +155,7 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
  * @example <caption>Example usage of getId.</caption>
  * @return {String} contractUUID
  */
- Mint.prototype.getId = function() {
+Mint.prototype.getId = function () {
     return this.mintId;
 };
 
@@ -153,7 +165,7 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
  * @example <caption>Example usage of equals.</caption>
  * @return {Boolean} true | false
  */
- Mint.prototype.equals = function(otherSolution) {
+Mint.prototype.equals = function (otherSolution) {
     return otherSolution.getId() == this.getId();
 };
 /**
@@ -162,7 +174,7 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
  * @example <caption>Example usage of fill.</caption>
  * @return {Void}
  */
- Mint.prototype.fill = function(newFields) {
+Mint.prototype.fill = function (newFields) {
     for (var field in newFields) {
         if (this.hasOwnProperty(field) && newFields.hasOwnProperty(field)) {
             if (this[field] !== 'undefined') {
@@ -183,8 +195,8 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
  * @example <caption>Example usage of delete.</caption>
  * @return {Promise<Array>} Response Array
  */
- Mint.prototype.delete = async (proces) =>{
-    log.options.tags = ['log', '<<level>>']; 
+Mint.prototype.delete = async (proces) => {
+    log.options.tags = ['log', '<<level>>'];
     try {
         return await dynamo.deleteItemFromDB({
             TableName: process.env.DYNAMODB_TABLE_CONTRACT,

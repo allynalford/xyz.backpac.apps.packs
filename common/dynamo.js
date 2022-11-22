@@ -41,6 +41,25 @@ module.exports.saveItemInDB =(params) => {
     }
 };
 /**
+ * Save the item in dynamoDB
+ * @async
+ * @private
+ * @requires module:aws-sdk
+ * @return {Array}
+ */
+ module.exports.saveItemInDBRegion =(params, region) => {
+  try {
+    const dynamoDB = new AWS.DynamoDB.DocumentClient({region});
+    return dynamoDB
+      .put(params)
+      .promise()
+      .then(res => res)
+      .catch(err => err);
+  } catch (err) {
+    return {error: true, message: err.message, e: err};
+  }
+};
+/**
  * get an item from dynamoDB
  * @async
  * @private

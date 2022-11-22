@@ -233,6 +233,20 @@ IPFS.prototype.getImageByUrl = async function (url, Key) {
 };
 
 
+
+/**
+ * get a IPFS Public URL
+ *
+ * @author Allyn j. Alford <Allyn@backpac.xyz>
+ * @function getIPFSURL
+ * @example <caption>Example usage of getAuth.</caption>
+ * @return {Promise<String>} Automation Object
+ */
+ IPFS.prototype.getPublicURL = function() {
+  return "ipfs://" + this.hash;
+};
+
+
 /**
  * get a IPFS CID
  *

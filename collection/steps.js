@@ -205,7 +205,7 @@ module.exports.deployContract = async (event) => {
     const DeveloperPack = require('../model/DeveloperPack');
     const chain = chainDeveloperuuid.split(":")[0];
 
-    console.log('Getting Backpac for:', {chain, developeruuid});
+    console.info('Getting Backpac for:', {chain, developeruuid});
 
     const _DeveloperPack = new DeveloperPack(chain, developeruuid);
 
@@ -222,7 +222,7 @@ module.exports.deployContract = async (event) => {
     const ethers = require('ethers');
     const ContractFactory = ethers.ContractFactory;
 
-    console.log('Address:', _DeveloperPack.as);
+    console.info('Address:', _DeveloperPack.as);
 
     let provider =  new ethers.providers.AlchemyProvider("goerli", process.env.ALCHEMY_API_KEY);
 
@@ -236,7 +236,7 @@ module.exports.deployContract = async (event) => {
     const factory = new ContractFactory(contractData.abi, contractData.data.bytecode, walletSigner);
     const price = "0";
 
-    console.log('Deploying......');
+    console.info('Estimating......');
 
     const gas_price = await provider.getGasPrice();
 
@@ -248,7 +248,7 @@ module.exports.deployContract = async (event) => {
 
     const addressBalance = ethers.utils.formatEther(balance);
 
-    const deploymentData = factory.interface.encodeDeploy([_DeveloperContract.name, _DeveloperContract.symbol, _DeveloperContract.total_supply, 0, "https://ipfs.filebase.io/ipfs/"]);
+    const deploymentData = factory.interface.encodeDeploy([_DeveloperContract.name, _DeveloperContract.symbol, _DeveloperContract.total_supply, 0, "ipfs://"]);
 
     const estimatedGas = await provider.estimateGas({ data: deploymentData });
 
@@ -262,7 +262,7 @@ module.exports.deployContract = async (event) => {
       _DeveloperContract.symbol,
       _DeveloperContract.total_supply,
       price,
-      "https://ipfs.filebase.io/ipfs/",
+      "ipfs://",
       {
         gasPrice: gas_price,
         gasLimit: 9995000,
@@ -275,32 +275,44 @@ module.exports.deployContract = async (event) => {
   
         // The address the Contract WILL have once mined
     // See: https://ropsten.etherscan.io/address/0x2bd9aaa2953f988153c8629926d22a6a5f69b14e
-    console.log('Contract Address: ',contract.address);
+    console.info('Contract Address: ',contract.address);
     // "0x2bD9aAa2953F988153c8629926D22A6a5F69b14E"
 
     // The transaction that was sent to the network to deploy the Contract
     // See: https://ropsten.etherscan.io/tx/0x159b76843662a15bd67e482dcfbee55e8e44efad26c5a614245e12a00d4b1a51
-    console.log('Contract hash: ',contract.deployTransaction.hash);
+    console.info('Contract hash: ',contract.deployTransaction.hash);
     // "0x159b76843662a15bd67e482dcfbee55e8e44efad26c5a614245e12a00d4b1a51"
+    let stage = 'DEPLOYING';
+    console.info(stage);
 
-    // The contract is NOT deployed yet; we must wait until it is mined
-    await contract.deployed();
-    
-    const update = await _DeveloperContract._updateFields(_DeveloperContract.chainDeveloperuuid, _DeveloperContract.contractId, [
+   await _DeveloperContract._updateFields(_DeveloperContract.chainDeveloperuuid, _DeveloperContract.contractId, [
       { name: "contractAddress", value: contract.address },
       { name: "txHash", value: contract.deployTransaction.hash },
       { name: "owner", value: _DeveloperPack.as },
-      { name: "stage", value: "DEPLOYED" },
-      { name: "status", value: true },
+      { name: "stage", value: stage },
       { name: "schema_name", value: "ERC721" },
       { name: "category", value: ["DEFAULT"] },
       { name: "privacy", value: ["PUBLIC"] },
     ]);
 
+    
 
-    console.log('Update', update)
 
-    return { error: false, success: true, dt, gasEstimate, addressBalance};
+    // The contract is NOT deployed yet; we must wait until it is mined
+    await contract.deployed();
+
+    stage = 'DEPLOYED';
+    console.info(stage);
+    
+
+    await _DeveloperContract._updateFields(_DeveloperContract.chainDeveloperuuid, _DeveloperContract.contractId, [
+      { name: "stage", value: stage },
+      { name: "status", value: true },
+    ]);
+    
+    
+  
+    return { stage, error: false, success: true, dt, gasEstimate, addressBalance};
 
   }catch (e) {
     console.error(e.message);
