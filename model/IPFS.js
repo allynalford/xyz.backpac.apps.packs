@@ -242,7 +242,7 @@ IPFS.prototype.getImageByUrl = async function (url, Key) {
  * @example <caption>Example usage of getAuth.</caption>
  * @return {Promise<String>} Automation Object
  */
- IPFS.prototype.getPublicURL = function() {
+ IPFS.prototype.getIPFSURL = function() {
   return "ipfs://" + this.hash;
 };
 

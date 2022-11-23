@@ -18,15 +18,15 @@
  * @return {Metadata} Metadata Instance Object
  */
 function Metadata(image, image_data, external_url, description, name, attributes, background_color, animation_url, youtube_url) { 
-    this.description = description || null;
-    this.external_url  = external_url || null;
-    this.image_data = image_data || null;
+    this.description = description || undefined;
+    this.external_url  = external_url || undefined;
+    this.image_data = image_data || undefined;
     this.image  = image;
-    this.name = name || null;
+    this.name = name || undefined;
     this.attributes = attributes || [];
-    this.background_color = background_color || null;
-    this.animation_url = animation_url || null;
-    this.youtube_url = youtube_url || null;
+    this.background_color = background_color || undefined;
+    this.animation_url = animation_url || undefined;
+    this.youtube_url = youtube_url || undefined;
 }
 
 /**

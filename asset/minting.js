@@ -330,8 +330,8 @@ module.exports.estimateFees = async (event) => {
     
     const gas_price = await provider.getGasPrice();
 
-    let gas_limit = gas_price * 2;
-
+    //let gas_limit = gas_price * 2;
+    let gas_limit = "0x500000";
     //Print the gas
     console.info('gas_price', ethers.utils.formatEther(gas_price));
 
@@ -553,9 +553,11 @@ module.exports.mint = async (event) => {
 
      const transferTx = _.find(transfers.transfers, { 'hash': mintAssetTx.hash });
 
-     console.log(BigInt(transferTx.tokenId).toString());
+     
 
-     const tokenId = BigInt(transferTx.tokenId).toString()
+     const tokenId = BigInt(transferTx.tokenId).toString();
+
+     console.log('tokenId:', tokenId);
 
      await mint._updateFields(mint, [
       { name: "tokenId", value: tokenId },
@@ -576,6 +578,8 @@ module.exports.mint = async (event) => {
        mint.animation_url,
        mint.youtube_url
      );
+
+     console.log(asset)
 
      const minted = true;
 
