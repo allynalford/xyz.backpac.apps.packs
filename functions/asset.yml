@@ -53,6 +53,7 @@ assetMetaData:
       Action:
         - dynamodb:DescribeTable
         - dynamodb:GetItem
+        - dynamodb:UpdateItem
       Resource: 
         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
   # events:
@@ -81,6 +82,21 @@ mintAssetEstimateFees:
         - dynamodb:GetItem
       Resource: 
         - "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_PACKS}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+        - dynamodb:Query
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_USER}"
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_USER}/index/${self:provider.environment.DYNAMODB_TABLE_USER_EMAIL_ISSUER_INDEX}"
   # events:
   #   - http:
   #       path: asset/minting/estimate

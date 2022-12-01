@@ -270,7 +270,7 @@ module.exports.estimateFees = async (event) => {
       { name: "stage", value: "ESTIMATING"},
     ]);
 
-    //console.log(mint)
+    console.log(mint)
 
     //Set values from mint
     const { contractId } = mint;
@@ -290,7 +290,7 @@ module.exports.estimateFees = async (event) => {
 
     let user = {};
 
-    console.info('Checking Recipient Type');
+    console.info('Checking Recipient Type', mint.recipientType);
     //Check if the process is by email or wallet
     if(mint.recipientType === "email"){
       //Build the object
@@ -298,7 +298,8 @@ module.exports.estimateFees = async (event) => {
       //Fill will data
       await user.getByEmail();
     }else{
-      user = new User(undefined, null, mint.recipient);
+      console.info('Non-Backpac User');
+      user = new User(undefined, undefined, mint.recipient);
     }
 
     console.log('recipient address', user.address);
@@ -354,15 +355,12 @@ module.exports.estimateFees = async (event) => {
       }
     );
 
-
-    await mint._updateFields(mint, [
-      { name: "estimatedGas", value: estimatedGas},
-    ]);
+    console.info('Updating Gas Estimate.....');
 
     const gasEstimate = ethers.utils.formatEther(estimatedGas);
 
     await mint._updateFields(mint, [
-      { name: "estimatedGas", value: gasEstimate},
+      { name: "gasEstimate", value: gasEstimate},
     ]);
    
     console.info('Gas Estimate vs Balance', {gasEstimate, addressBalance});
@@ -385,7 +383,7 @@ module.exports.estimateFees = async (event) => {
 
       const gas_price = await provider.getGasPrice(); // gasPrice
 
-      console.log(gas_price);
+      console.log('gas_price',gas_price);
 
   
 
@@ -406,7 +404,7 @@ module.exports.estimateFees = async (event) => {
     }
    
 
-    return {hasGas: "true", transferred, dt, chainDeveloperuuid, contractId, developeruuid};
+    return {hasGas: "true", transferred, dt, chainDeveloperuuid, contractId, developeruuid, mintId};
 
   }catch (e) {
     console.error(e);
@@ -443,11 +441,14 @@ module.exports.mint = async (event) => {
     const DeveloperPack = require("../model/DeveloperPack");
     const chain = chainDeveloperuuid.split(":")[0];
 
-    console.log("Getting Backpac for:", { chain, developeruuid });
+    console.info("Minting within Backpac for:", { chain, developeruuid, mintId });
 
     const _DeveloperPack = new DeveloperPack(chain, developeruuid);
 
     await _DeveloperPack.setHash();
+
+    console.info('DeveloperPack Build');
+
     await _DeveloperPack.get();
 
     //console.log('_DeveloperPack', _DeveloperPack);
@@ -456,6 +457,7 @@ module.exports.mint = async (event) => {
     const ethers = require("ethers");
 
     //Create a signer from the wallet
+    console.info('DeveloperPack Signer');
     const signer = new ethers.Wallet(_DeveloperPack.pv);
 
     //Let's grab the mint we are processing
@@ -467,10 +469,11 @@ module.exports.mint = async (event) => {
     const mint = new Mint(developeruuid, chain, null, null, mintId);
 
     //fill object from database
+    console.info('Fill mint');
     await mint.get();
 
     //console.log(mint);
-
+    console.info('Update mint STAGE:MINTING');
     await mint._updateFields(mint, [
       { name: "stage", value: "MINTING"},
     ]);
@@ -484,6 +487,7 @@ module.exports.mint = async (event) => {
       chain,
       contractId
     );
+    console.info('Developer Contract');
     await _DeveloperContract.get();
 
     //console.log('_DeveloperContract', _DeveloperContract);
@@ -492,6 +496,7 @@ module.exports.mint = async (event) => {
       process.env.STAGE,
       process.env.ALCHEMY_API_KEY
     );
+    console.info('Checking Developer Balance');
     const balance = await provider.getBalance(_DeveloperPack.as);
 
     const addressBalance = ethers.utils.formatEther(balance);
@@ -508,6 +513,7 @@ module.exports.mint = async (event) => {
       account
     );
 
+    console.info('Setting Gas limits');
     let gas_limit = "0x500000";
     const gas_price = await provider.getGasPrice();
 
@@ -563,13 +569,17 @@ module.exports.mint = async (event) => {
 
      const tokenId = BigInt(transferTx.tokenId).toString();
 
-     console.log('tokenId:', tokenId);
+     console.log('Minted tokenId:', tokenId);
 
+     console.info('Updating mint');
      await mint._updateFields(mint, [
       { name: "tokenId", value: tokenId },
      ]);
 
      const DigitalAsset = require("../model/DigitalAsset");
+
+     console.info('Creating Digital Asset');
+     
      const asset = new DigitalAsset(
        chain,
        _DeveloperContract.contractAddress,
@@ -585,8 +595,7 @@ module.exports.mint = async (event) => {
        mint.youtube_url
      );
 
-     console.log(asset);
-
+     console.info('Saving Digital Asset', asset);
      await asset.save();
 
      const minted = true;

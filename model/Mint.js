@@ -82,6 +82,8 @@ Mint.prototype.get = async function () {
             }
         }, process.env.table_region);
 
+        log.info('qetFromDBRegion:mint', mint)
+
         this.fill(mint);
 
 
