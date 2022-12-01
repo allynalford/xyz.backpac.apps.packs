@@ -54,8 +54,13 @@ definition:
       Type: Task
       Resource: 
         Fn::GetAtt: [mintAsset, Arn]
-      Next: AssetMintChoiceState
-    AssetMintChoiceState:
+        Catch:
+        - ErrorEquals: ["States.Timeout"]
+          Next: AssetMintTxWaitState
+        - ErrorEquals: ["States.Runtime"]
+          Next: Stop  
+      Next: AssetMintStateChoiceState
+    AssetMintStateChoiceState:
       Type: Choice
       Choices:
       - Variable: "$.minted"
@@ -72,7 +77,29 @@ definition:
       Type: Task
       Resource: 
         Fn::GetAtt: [mintAssetTxWait, Arn]
-      Next: AssetMintChoiceState
+        Retry:
+        - ErrorEquals: ["States.Timeout"]
+          IntervalSeconds: 180
+          MaxAttempts: 10
+          BackoffRate: 2
+          Next: Stop
+        Catch:
+        - ErrorEquals: ["States.Timeout"]
+          Next: AssetMintTxWaitState
+        - ErrorEquals: ["States.TaskFailed"]
+          Next: Stop
+        - ErrorEquals: ["States.Runtime"]
+          Next: Stop  
+      Next: AssetMintTxStateChoiceState
+    AssetMintTxStateChoiceState:
+      Type: Choice
+      Choices:
+      - Variable: "$.minted"
+        StringEquals: "true"
+        Next: Stop
+      - Variable: "$.minted"
+        StringEquals: "false"
+        Next: AssetMintTxWaitState
     Stop:
       Type: Task
       Resource: 

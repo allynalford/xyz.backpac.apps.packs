@@ -71,8 +71,8 @@ module.exports.mintStart = async (event) => {
 module.exports.assetMetaData = async (event) => {
   let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
   try {
-    req = event.body !== "" ? JSON.parse(event.body) : event;
-    //req = event;
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
     log.options.tags = ["log", "<<level>>"];
     dt = dateFormat(new Date(), "isoUtcDateTime");
 
@@ -156,7 +156,7 @@ module.exports.assetMetaData = async (event) => {
 
     //Upload the file image from s3 to IPFS
     console.info('Uploading image from s3 to IPFS', imageKey);
-    await ipfs.addKey();
+    await ipfs.addKey(mintId);
 
     //Build the metadata for the NFT
     const NFTMetadata = require('../model/NFTMetadata');
@@ -179,7 +179,7 @@ module.exports.assetMetaData = async (event) => {
 
     //Add the metadata to IPFS from s3
     console.info('Uploading metadata from s3 to IPFS...');
-    await metedataIPFS.addKey();
+    await metedataIPFS.addMetadataKey(mintId);
 
 
     //Update the mint
@@ -212,8 +212,8 @@ module.exports.assetMetaData = async (event) => {
 module.exports.estimateFees = async (event) => {
   let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
   try {
-    req = event.body !== "" ? JSON.parse(event.body) : event;
-    //req = event;
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
     dt = dateFormat(new Date(), "isoUtcDateTime");
     developeruuid = req.developeruuid;
     mintId = req.mintId;
@@ -248,6 +248,7 @@ module.exports.estimateFees = async (event) => {
     //check the wallet balanace
     const ethers = require('ethers');
 
+    console.info('Creating Signer');
     const signer = new ethers.Wallet(_DeveloperPack.pv); 
     
 
@@ -261,8 +262,10 @@ module.exports.estimateFees = async (event) => {
     const mint = new Mint(developeruuid, chain, null, null, mintId);
 
     //fill object from database
+    console.info('Filling Mint Object');
     await mint.get();
 
+    console.info('Updating Mint STAGE');
     await mint._updateFields(mint, [
       { name: "stage", value: "ESTIMATING"},
     ]);
@@ -276,6 +279,7 @@ module.exports.estimateFees = async (event) => {
 
     const DeveloperContract = require('../model/DeveloperContract');
     const _DeveloperContract = new DeveloperContract(developeruuid, chain, contractId);
+    console.info('fIlling Developer Contract');
     await _DeveloperContract.get();
 
     //console.log('_DeveloperContract', _DeveloperContract);
@@ -286,6 +290,7 @@ module.exports.estimateFees = async (event) => {
 
     let user = {};
 
+    console.info('Checking Recipient Type');
     //Check if the process is by email or wallet
     if(mint.recipientType === "email"){
       //Build the object
@@ -293,7 +298,7 @@ module.exports.estimateFees = async (event) => {
       //Fill will data
       await user.getByEmail();
     }else{
-      user = new User({address: mint.recipient});
+      user = new User(undefined, null, mint.recipient);
     }
 
     console.log('recipient address', user.address);
@@ -415,8 +420,8 @@ module.exports.estimateFees = async (event) => {
 module.exports.mint = async (event) => {
   let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
   try {
-    req = event.body !== "" ? JSON.parse(event.body) : event;
-    //req = event;
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
     dt = dateFormat(new Date(), "isoUtcDateTime");
     developeruuid = req.developeruuid;
     mintId = req.mintId;
@@ -542,6 +547,7 @@ module.exports.mint = async (event) => {
     // //Update the mint to the address of the user
     await mint._updateFields(mint, [
       { name: "stage", value: "MINTED" },
+      { name: "receiptTxHash", value: receipt.transactionHash },
     ]);
 
     
@@ -579,17 +585,18 @@ module.exports.mint = async (event) => {
        mint.youtube_url
      );
 
-     console.log(asset)
+     console.log(asset);
+
+     await asset.save();
 
      const minted = true;
 
 
     return {
-      hasGas: "true",
       minted,
       dt,
       chainDeveloperuuid,
-      contractId,
+      mintId,
       developeruuid,
     };
   }catch (e) {
@@ -600,7 +607,112 @@ module.exports.mint = async (event) => {
 
 };
 
+module.exports.mintTxWait = async (event) => {
+  let req, dt, chainDeveloperuuid, mintId, developeruuid;
+  try {
+    //req = event.body !== "" ? JSON.parse(event.body) : event;
+    req = event;
+    dt = dateFormat(new Date(), "isoUtcDateTime");
+    developeruuid = req.developeruuid;
+    mintId = req.mintId;
+    chainDeveloperuuid = req.chainDeveloperuuid;
 
+    if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
+    if (typeof chainDeveloperuuid === "undefined") throw new Error("chainDeveloperuuid is undefined");
+    if (typeof mintId === "undefined") throw new Error("mintId is undefined");
+   
+
+  } catch (e){
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+
+  try {
+  
+    //Needs to be passed in o pulled from mint
+    const chain = chainDeveloperuuid.split(":")[0];
+
+    console.log("Checking Mint State for:", { mintId, chain, developeruuid });
+
+
+    //Let's grab the mint we are processing
+
+    //init module
+    const Mint = require("../model/Mint");
+
+    //init object
+    const mint = new Mint(developeruuid, chain, null, null, mintId);
+
+    //fill object from database
+    await mint.get();
+
+
+    //Set values from mint
+    const { contractId } = mint;
+
+    const DeveloperContract = require("../model/DeveloperContract");
+    const _DeveloperContract = new DeveloperContract(
+      developeruuid,
+      chain,
+      contractId
+    );
+    await _DeveloperContract.get();
+
+
+     const alchemy = require("../common/alchemy");
+     const _ = require("lodash");
+
+     const transfers = await alchemy.getAssetTransfers(mint.recipientAddress, [_DeveloperContract.contractAddress]);
+
+     const transferTx = _.find(transfers.transfers, { 'hash': mint.txHash });
+
+     
+
+     const tokenId = BigInt(transferTx.tokenId).toString();
+
+     console.log('tokenId:', tokenId);
+
+     await mint._updateFields(mint, [
+      { name: "tokenId", value: tokenId },
+     ]);
+
+     const DigitalAsset = require("../model/DigitalAsset");
+     const asset = new DigitalAsset(
+       chain,
+       _DeveloperContract.contractAddress,
+       typeof erc721TokenId !== "undefined" ? "erc721" : "erc1155",
+       tokenId,
+       null,
+       mint.description,
+       mint.name,
+       mint.hash,
+       mint.external_url,
+       mint.attributes,
+       mint.animation_url,
+       mint.youtube_url
+     );
+
+     console.log(asset);
+
+     await asset.save();
+
+     const minted = true;
+
+
+    return {
+      dt,
+      chainDeveloperuuid,
+      mintId,
+      developeruuid,
+    };
+  }catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+
+};
 
 module.exports.stop = async (event) => {
     log.options.tags = ['log', '<<level>>'];

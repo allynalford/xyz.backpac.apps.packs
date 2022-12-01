@@ -45,6 +45,8 @@ function User(issuer, address, email, isMfaEnabled, phoneNumber, status) {
     try {
 
 
+      console.log(this.email);
+
         let user = await dynamo.queryDBRegion({
             TableName: process.env.DYNAMODB_TABLE_USER,
             IndexName: process.env.DYNAMODB_TABLE_USER_EMAIL_ISSUER_INDEX,
@@ -57,7 +59,7 @@ function User(issuer, address, email, isMfaEnabled, phoneNumber, status) {
             },
         }, process.env.table_region);
 
-        //console.log(user)
+        console.log(user)
 
         user = user[0];
 

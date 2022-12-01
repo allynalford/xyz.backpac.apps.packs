@@ -1,7 +1,7 @@
 'use strict';
 const dateFormat = require('dateformat');
 const log = require('lambda-log');
-const ipfsClient = require('ipfs-http-client'); 
+ 
 
 
 /**
@@ -23,18 +23,19 @@ function IPFS(_IPFS_PROJECT_ID, _IPFS_PROJECT_KEY) {
 
     this.dt =  dateFormat(new Date(), "isoUtcDateTime");
 
-    const http = require('http');
-    const Agent = new http.Agent({ });
+    // const ipfsClient = require('ipfs-http-client');
+    // const http = require('http');
+    // const Agent = new http.Agent({ });
 
-    this.client = ipfsClient.create({
-        host: process.env.IPFS_GATEWAY_HOST,
-        port: process.env.IPFS_PORT,
-        protocol: 'http',
-        agent: Agent,
-        headers: {
-            authorization: 'Basic ' + Buffer.from(process.env.IPFS_PROJECT_ID + ':' + process.env.IPFS_PROJECT_KEY).toString('base64'),
-        },
-    });
+    // this.client = ipfsClient.create({
+    //     host: process.env.IPFS_GATEWAY_HOST,
+    //     port: process.env.IPFS_PORT,
+    //     protocol: 'http',
+    //     agent: Agent,
+    //     headers: {
+    //         authorization: 'Basic ' + Buffer.from(process.env.IPFS_PROJECT_ID + ':' + process.env.IPFS_PROJECT_KEY).toString('base64'),
+    //     },
+    // });
 }
 
 /**
@@ -51,28 +52,29 @@ function IPFS(_IPFS_PROJECT_ID, _IPFS_PROJECT_KEY) {
  * @return {Promise<String>} Automation Object
  */
 IPFS.prototype.getImageByUrl = async function (url, Key) {
-  const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
-  const Axios = require("axios");
-  const response = await Axios({
-    url,
-    decompress: false,
-    method: "GET",
-    responseType: "arraybuffer",
-  });
+  try {
+    const Axios = require("axios");
+    const response = await Axios({
+      url,
+      decompress: false,
+      method: "GET",
+      responseType: "arraybuffer",
+    });
 
-  this.key = Key;
+    this.key = Key;
+    this.url = url;
 
-  const s3 = new S3Client({
-    region: process.env.REGION,
-    apiVersion: process.env.S3_API_VERSION,
-  });
-  await s3.send(
-    new PutObjectCommand({
+    const s3Utils = require("../common/s3Utils");
+
+    await s3Utils._put({
       Bucket: process.env.ASSET_UPLOAD_BUCKET,
       Key,
       Body: response.data,
-    })
-  );
+    });
+  } catch (e) {
+    log.error(e);
+    throw e;
+  }
 
   return Key;
 };
@@ -89,26 +91,37 @@ IPFS.prototype.getImageByUrl = async function (url, Key) {
  * @return {Promise<String>} Automation Object
  */
  IPFS.prototype.addMetadata = async function (metadata, Key) {
-    const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
-
+   
     this.key = Key;
   
-    const s3 = new S3Client({
-      region: process.env.REGION,
-      apiVersion: process.env.S3_API_VERSION,
-    });
+    // const s3 = new S3Client({
+    //   region: process.env.REGION,
+    //   apiVersion: process.env.S3_API_VERSION,
+    // });
 
     var buf = Buffer.from(JSON.stringify(metadata));
 
-    await s3.send(
-      new PutObjectCommand({
-        Bucket: process.env.ASSET_UPLOAD_BUCKET,
-        Key,
-        Body: buf,
-        ContentEncoding: 'base64',
-        ContentType: 'application/json',
-      })
-    );
+    // await s3.send(
+    //   new PutObjectCommand({
+    //     Bucket: process.env.ASSET_UPLOAD_BUCKET,
+    //     Key,
+    //     Body: buf,
+    //     ContentEncoding: 'base64',
+    //     ContentType: 'application/json',
+    //   })
+    // );
+
+    const s3Utils = require('../common/s3Utils');
+
+    await s3Utils._put({
+      Bucket: process.env.ASSET_UPLOAD_BUCKET,
+      Key,
+      Body: buf,
+      ContentEncoding: 'base64',
+      ContentType: 'application/json',
+    });
+
+
   
     return Key;
   };
@@ -131,54 +144,178 @@ IPFS.prototype.getImageByUrl = async function (url, Key) {
   size: 3243
   }
  */
- IPFS.prototype.addKey = async function () {
-   const Axios = require("axios");
-   const AWS = require("aws-sdk");
+ IPFS.prototype.addKey = async function (mintId) {
+   try {
 
 
-   const s3 = new AWS.S3({
-     region: process.env.REGION,
-     apiVersion: process.env.S3_API_VERSION,
-   });
-
-   const readStream = s3
-     .getObject({
-       Key: this.key,
-       Bucket: process.env.ASSET_UPLOAD_BUCKET,
-     })
-     .createReadStream();
-
-   const FormData = require("form-data");
-   const formData = new FormData();
-
-   formData.append("content", readStream);
-
-   let headers = formData.getHeaders();
-
-   headers.authorization =
-     "Basic " +
-     Buffer.from(
-       process.env.IPFS_PROJECT_ID + ":" + process.env.IPFS_PROJECT_KEY
-     ).toString("base64");
+    console.log("Uploading to IPFS", this.key);
 
 
-   headers["User-Agent"] = "xyz.backpac.apps.packs";
+    const ipfsUpload = await pinFileToIPFS(
+      {
+        Key: this.key,
+        Bucket: process.env.ASSET_UPLOAD_BUCKET,
+      },
+      mintId
+    );
 
-   const ipfsUpload = await Axios.post(
-     `${process.env.IPFS_GATEWAY}/api/v0/add`,
-     formData,
-     {
-       headers,
-     }
-   );
+     console.log("Uploaded to IPFS", ipfsUpload.IpfsHash);
 
-   this.name = ipfsUpload.data.Name;
-   this.hash = ipfsUpload.data.Hash
-   this.size = ipfsUpload.data.Size;
+     console.log("Updating Object");
 
-   return await ipfsUpload.data;
+     this.hash = ipfsUpload.IpfsHash;
+     this.size = ipfsUpload.PinSize;
+
+     return ipfsUpload;
+     
+   } catch (e) {
+     console.error(e);
+     throw e;
+   }
  };
 
+ /**
+ * add Image to IPFS by from S3
+ *
+ * @author Allyn j. Alford <Allyn@backpac.xyz>
+ * @async
+ * @function getAuth
+ * @requires module:aws-sdk
+ * @requires module:axios
+ * @example <caption>Example usage of addByUrl.</caption>
+ * @return {Promise<Array>} Array Object 
+ * {
+  Name: 'ipfs-logo.svg',
+  Hash: CID('QmTqZhR6f7jzdhLgPArDPnsbZpvvgxzCZycXK7ywkLxSyU'),
+  size: 3243
+  }
+ */
+  IPFS.prototype.addMetadataKey = async function (mintId) {
+    try {
+ 
+ 
+     console.log("Uploading to Metadata IPFS", this.key);
+ 
+ 
+     const ipfsUpload = await pinJsonToIPFS(
+       {
+         Key: this.key,
+         Bucket: process.env.ASSET_UPLOAD_BUCKET,
+       },
+       mintId
+     );
+ 
+      console.log("Uploaded to metadata to IPFS", ipfsUpload.IpfsHash);
+ 
+      console.log("Updating Object");
+ 
+      this.hash = ipfsUpload.IpfsHash;
+      this.size = ipfsUpload.PinSize;
+ 
+      return ipfsUpload;
+      
+    } catch (e) {
+      console.error(e);
+      throw e;
+    }
+  };
+ 
+
+
+
+
+ const pinFileToIPFS = async (params, mintId) => {
+  const s3Utils = require('../common/s3Utils');
+  const FormData = require("form-data");
+  const fs = require('fs');
+  var path = require('path');
+
+  //Need a form for submission
+  const formData = new FormData();
+  
+  //Need a new file name for TMP folder
+  const ext = path.extname(params.Key);
+  const fileName = mintId + ext;
+
+  console.log('Writing File to: ', "/tmp/" + fileName);
+  const writtenFileKey = await s3Utils._writeFileToTmp(params, fileName);
+
+  console.log('written File Key:', writtenFileKey);
+
+  console.log('Creating Stream From:', writtenFileKey);
+  const file = fs.createReadStream(writtenFileKey);
+
+  console.log('Appending file to form', writtenFileKey);
+  formData.append('file', file)
+
+  
+  const metadata = JSON.stringify({
+    name: params.Key,
+  });
+
+  console.log('Appending metadata to form', metadata);
+  formData.append('pinataMetadata', metadata);
+  
+  const options = JSON.stringify({
+    cidVersion: 0,
+  })
+  formData.append('pinataOptions', options);
+
+  try{
+    const Axios = require("axios");
+    const res = await Axios.post("https://api.pinata.cloud/pinning/pinFileToIPFS", formData, {
+      maxBodyLength: "Infinity",
+      headers: {
+        'Content-Type': `multipart/form-data; boundary=${formData._boundary}`,
+        Authorization: `Bearer ${process.env.PINATA_TK}`
+      }
+    });
+    console.log(res.data);
+    return res.data;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
+
+const pinJsonToIPFS = async (params, mintId) => {
+  const s3Utils = require('../common/s3Utils');
+  const fs = require('fs');
+
+
+  //Need a new file name for TMP folder
+  const fileName = mintId + '.json';
+
+  console.log('Writing File JSON metadata file to ./tmp/', fileName);
+  const writtenFileKey = await s3Utils._writeFileToTmp(params, fileName);
+
+  console.log('written File Key:', writtenFileKey);
+
+  console.log('Reading File From:', writtenFileKey);
+
+  let data = fs.readFileSync(writtenFileKey, 'utf8'); 
+ 
+  //const data = fs.readFileSync(writtenFileKey, 'utf8');
+  //data = JSON.stringify(data);
+
+  try{
+    const Axios = require("axios");
+    const res = await Axios({
+      method: 'post',
+      url: 'https://api.pinata.cloud/pinning/pinJSONToIPFS',
+      headers: { 
+        'Content-Type': 'application/json', 
+        'Authorization': `Bearer ${process.env.PINATA_TK}`
+      },
+      data : data
+    });
+    console.log(res.data);
+    return res.data;
+  } catch (error) {
+    console.log(error);
+    throw error;
+  }
+}
 
 
 /**

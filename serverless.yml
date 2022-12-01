@@ -4,7 +4,7 @@ provider:
   name: aws
   runtime: nodejs14.x
   region: ${opt:region, 'us-east-2'}
-  stage: ${opt:stage, 'dev'} 
+  stage: ${opt:stage, 'goerli'} 
   memorySize: 128
   timeout: 30
   lambdaHashingVersion: 20201221
@@ -26,6 +26,9 @@ provider:
     IPFS_PROJECT_KEY: ${file(config.${self:provider.stage}.json):IPFS_PROJECT_KEY}
     IPFS_PORT: ${file(config.${self:provider.stage}.json):IPFS_PORT}
     IPFS_DEDICATED_GATEWAY: ${file(config.${self:provider.stage}.json):IPFS_DEDICATED_GATEWAY}
+    PINATA_KEY: ${file(config.${self:provider.stage}.json):PINATA_KEY}
+    PINATA_SC: ${file(config.${self:provider.stage}.json):PINATA_SC}
+    PINATA_TK: ${file(config.${self:provider.stage}.json):PINATA_TK}
     IPFS_GATEWAY: ${file(config.${self:provider.stage}.json):IPFS_GATEWAY}
     IPFS_GATEWAY_HOST: ${file(config.${self:provider.stage}.json):IPFS_GATEWAY_HOST}
     IPFS_DEDICATED_HOST: ${file(config.${self:provider.stage}.json):IPFS_DEDICATED_HOST} 

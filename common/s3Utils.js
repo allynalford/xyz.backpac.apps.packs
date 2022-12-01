@@ -8,16 +8,18 @@ module.exports._writeFileToTmp = async (params, name) =>{
   try {
       //const images = ["./test/samples/file1.png", "./test/samples/file2.png"]
       
-
+      console.log('S3 Data params', params);
+     
       const Key = "/tmp/" + name;
       const Data = await this._get(params);
+
+      console.log('S3 Data', Data);
+      
       const file = await this._writeFile(Key, Data);
 
-      console.log('file', file);
+      console.log('File Written to /TMP', file);
 
       return Key;
-
-
 
   } catch (e) {
       console.error(e);
@@ -25,12 +27,28 @@ module.exports._writeFileToTmp = async (params, name) =>{
   };
 };
 
+module.exports._get = (params) =>{
+  try {
+    // set some optional metadata to be included in all logs (this is an overkill example)
+    log.options.meta.params = params;
+
+   return s3.getObject(params)
+        .promise()
+        .then(res => res.Body)
+        .catch(err => err);
+
+  } catch (err) {
+    log.error(err);
+    console.error(err);
+    return { error: true, message: err.message, e: err };
+  }
+};
+
 module.exports._writeFile = async (Key, Data) => {
   try {
-
     const writeFile = (Key, Data) => {
       return new Promise((resolve, reject) => {
-        fs.writeFile(Key, Data.Body, function (err) {
+        fs.writeFile(Key, Data, function (err) {
           if (err) {
             console.log(err, err.stack); // if an error occurred
             return reject(err);
@@ -123,21 +141,7 @@ module.exports._put = (params) =>{
     }
 };
 
-module.exports._get = (params) =>{
-  try {
-    // set some optional metadata to be included in all logs (this is an overkill example)
-    log.options.meta.params = params;
 
-   return s3.getObject(params)
-        .promise()
-        .then(res => res.Body)
-        .catch(err => err);
-
-  } catch (err) {
-    console.error(err);
-    return { error: true, message: err.message, e: err };
-  }
-};
 
 module.exports._getEncrypted = (params) =>{
   try {
