@@ -279,43 +279,40 @@ IPFS.prototype.getImageByUrl = async function (url, Key) {
 }
 
 const pinJsonToIPFS = async (params, mintId) => {
-  const s3Utils = require('../common/s3Utils');
-  const fs = require('fs');
+  const s3Utils = require("../common/s3Utils");
+  const Axios = require("axios");
+  const fs = require("fs");
 
+  try {
+    //Need a new file name for TMP folder
+    const fileName = mintId + ".json";
 
-  //Need a new file name for TMP folder
-  const fileName = mintId + '.json';
+    console.log("Writing File JSON metadata file to ./tmp/", fileName);
 
-  console.log('Writing File JSON metadata file to ./tmp/', fileName);
-  const writtenFileKey = await s3Utils._writeFileToTmp(params, fileName);
+    const writtenFileKey = await s3Utils._writeFileToTmp(params, fileName);
 
-  console.log('written File Key:', writtenFileKey);
+    console.log("written File Key:", writtenFileKey);
 
-  console.log('Reading File From:', writtenFileKey);
+    console.log("Reading File From:", writtenFileKey);
 
-  let data = fs.readFileSync(writtenFileKey, 'utf8'); 
- 
-  //const data = fs.readFileSync(writtenFileKey, 'utf8');
-  //data = JSON.stringify(data);
+    let data = fs.readFileSync(writtenFileKey, "utf8");
 
-  try{
-    const Axios = require("axios");
     const res = await Axios({
-      method: 'post',
-      url: 'https://api.pinata.cloud/pinning/pinJSONToIPFS',
-      headers: { 
-        'Content-Type': 'application/json', 
-        'Authorization': `Bearer ${process.env.PINATA_TK}`
+      method: "post",
+      url: "https://api.pinata.cloud/pinning/pinJSONToIPFS",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.PINATA_TK}`,
       },
-      data : data
+      data: data,
     });
-    console.log(res.data);
+    
     return res.data;
   } catch (error) {
     console.log(error);
     throw error;
   }
-}
+};
 
 
 /**

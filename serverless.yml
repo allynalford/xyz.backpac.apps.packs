@@ -47,6 +47,7 @@ provider:
     DYNAMODB_TABLE_USER_CLAIMABLE_INDEX: ${self:service}-${opt:stage, self:provider.stage}-user-claimable-chainContractAddress-index
     DYNAMODB_TABLE_USER: backpac-${opt:stage, self:provider.stage}-user
     DYNAMODB_TABLE_USER_EMAIL_ISSUER_INDEX: backpac-${opt:stage, self:provider.stage}-user-email-issuer-index
+    DYNAMODB_TABLE_DIGITAL_ASSET: backpac-api-${opt:stage, self:provider.stage}-digital-asset
     DYNAMODB_TABLE_DEVELOPER_CONTRACT_REGION: us-east-1
   iamRoleStatements:
     - Effect: "Allow"

@@ -416,7 +416,8 @@ module.exports.estimateFees = async (event) => {
 
 
 module.exports.mint = async (event) => {
-  let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
+  let req, dt, chainDeveloperuuid, mintId, developeruuid;
+  let minted = "false";
   try {
     //req = event.body !== "" ? JSON.parse(event.body) : event;
     req = event;
@@ -424,14 +425,14 @@ module.exports.mint = async (event) => {
     developeruuid = req.developeruuid;
     mintId = req.mintId;
     chainDeveloperuuid = req.chainDeveloperuuid;
-    username = req.username;
 
-    if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
-    if (typeof chainDeveloperuuid === "undefined") throw new Error("chainDeveloperuuid is undefined");
-    if (typeof mintId === "undefined") throw new Error("mintId is undefined");
-    if (typeof username === "undefined") throw new Error("username is undefined");
-
-  } catch (e){
+    if (typeof developeruuid === "undefined")
+      throw new Error("developeruuid is undefined");
+    if (typeof chainDeveloperuuid === "undefined")
+      throw new Error("chainDeveloperuuid is undefined");
+    if (typeof mintId === "undefined") 
+      throw new Error("mintId is undefined");
+  } catch (e) {
     console.error(e);
     const error = new CustomError("HandledError", e.message);
     return error;
@@ -441,13 +442,18 @@ module.exports.mint = async (event) => {
     const DeveloperPack = require("../model/DeveloperPack");
     const chain = chainDeveloperuuid.split(":")[0];
 
-    console.info("Minting within Backpac for:", { chain, developeruuid, mintId });
+    console.info("Minting within Backpac for:", {
+      chain,
+      developeruuid,
+      mintId,
+    });
 
     const _DeveloperPack = new DeveloperPack(chain, developeruuid);
 
+    console.info("Setting Developer Pack Hash");
     await _DeveloperPack.setHash();
 
-    console.info('DeveloperPack Build');
+    console.info("DeveloperPack Build");
 
     await _DeveloperPack.get();
 
@@ -457,7 +463,7 @@ module.exports.mint = async (event) => {
     const ethers = require("ethers");
 
     //Create a signer from the wallet
-    console.info('DeveloperPack Signer');
+    console.info("DeveloperPack Signer");
     const signer = new ethers.Wallet(_DeveloperPack.pv);
 
     //Let's grab the mint we are processing
@@ -469,14 +475,12 @@ module.exports.mint = async (event) => {
     const mint = new Mint(developeruuid, chain, null, null, mintId);
 
     //fill object from database
-    console.info('Fill mint');
+    console.info("Fill mint");
     await mint.get();
 
     //console.log(mint);
-    console.info('Update mint STAGE:MINTING');
-    await mint._updateFields(mint, [
-      { name: "stage", value: "MINTING"},
-    ]);
+    console.info("Update mint STAGE:MINTING");
+    await mint._updateFields(mint, [{ name: "stage", value: "MINTING" }]);
 
     //Set values from mint
     const { contractId } = mint;
@@ -487,7 +491,7 @@ module.exports.mint = async (event) => {
       chain,
       contractId
     );
-    console.info('Developer Contract');
+    console.info("Developer Contract");
     await _DeveloperContract.get();
 
     //console.log('_DeveloperContract', _DeveloperContract);
@@ -496,7 +500,7 @@ module.exports.mint = async (event) => {
       process.env.STAGE,
       process.env.ALCHEMY_API_KEY
     );
-    console.info('Checking Developer Balance');
+    console.info("Checking Developer Balance");
     const balance = await provider.getBalance(_DeveloperPack.as);
 
     const addressBalance = ethers.utils.formatEther(balance);
@@ -513,7 +517,7 @@ module.exports.mint = async (event) => {
       account
     );
 
-    console.info('Setting Gas limits');
+    console.info("Setting Gas limits");
     let gas_limit = "0x500000";
     const gas_price = await provider.getGasPrice();
 
@@ -538,7 +542,7 @@ module.exports.mint = async (event) => {
       }
     );
 
-    console.log('Mint Asset Tx', mintAssetTx);
+    console.log("Mint Asset Tx", mintAssetTx);
 
     //Update the mint to the address of the user
     await mint._updateFields(mint, [
@@ -556,50 +560,50 @@ module.exports.mint = async (event) => {
       { name: "receiptTxHash", value: receipt.transactionHash },
     ]);
 
-    
+    const alchemy = require("../common/alchemy");
+    const _ = require("lodash");
 
-     const alchemy = require("../common/alchemy");
-     const _ = require("lodash");
+    const transfers = await alchemy.getAssetTransfers(mint.recipientAddress, [
+      _DeveloperContract.contractAddress,
+    ]);
 
-     const transfers = await alchemy.getAssetTransfers(mint.recipientAddress, [_DeveloperContract.contractAddress]);
+    const transferTx = _.find(transfers.transfers, { hash: mintAssetTx.hash });
 
-     const transferTx = _.find(transfers.transfers, { 'hash': mintAssetTx.hash });
+    console.log("Minted Tx:", transferTx);
 
-     
+    const tokenId = BigInt(transferTx.tokenId).toString();
 
-     const tokenId = BigInt(transferTx.tokenId).toString();
+    console.log("Minted tokenId:", tokenId);
 
-     console.log('Minted tokenId:', tokenId);
+    console.info("Updating mint");
+    await mint._updateFields(mint, [{ name: "tokenId", value: tokenId }]);
 
-     console.info('Updating mint');
-     await mint._updateFields(mint, [
-      { name: "tokenId", value: tokenId },
-     ]);
+    minted = "true";
 
-     const DigitalAsset = require("../model/DigitalAsset");
+    const DigitalAsset = require("../model/DigitalAsset");
 
-     console.info('Creating Digital Asset');
-     
-     const asset = new DigitalAsset(
-       chain,
-       _DeveloperContract.contractAddress,
-       typeof erc721TokenId !== "undefined" ? "erc721" : "erc1155",
-       tokenId,
-       null,
-       mint.description,
-       mint.name,
-       mint.hash,
-       mint.external_url,
-       mint.attributes,
-       mint.animation_url,
-       mint.youtube_url
-     );
+    console.info("Creating Digital Asset");
 
-     console.info('Saving Digital Asset', asset);
-     await asset.save();
+    const asset = new DigitalAsset(
+      chain,
+      _DeveloperContract.contractAddress,
+      typeof transferTx.erc721TokenId !== null ?  "erc721" : "erc1155",
+      tokenId,
+      null,
+      mint.description,
+      mint.name,
+      mint.imageURL,
+      mint.external_url,
+      mint.attributes,
+      mint.animation_url,
+      mint.youtube_url
+    );
 
-     const minted = true;
+    console.info("Saving Digital Asset", asset);
 
+    const saveAsset = await asset.save();
+
+    console.log('Asset Saved:',saveAsset);
 
     return {
       minted,
@@ -608,16 +612,15 @@ module.exports.mint = async (event) => {
       mintId,
       developeruuid,
     };
-  }catch (e) {
+  } catch (e) {
     console.error(e);
     const error = new CustomError("HandledError", e.message);
     return error;
   }
-
 };
 
 module.exports.mintTxWait = async (event) => {
-  let req, dt, chainDeveloperuuid, mintId, developeruuid;
+  let req, dt, chainDeveloperuuid, mintId, developeruuid, minted;
   try {
     //req = event.body !== "" ? JSON.parse(event.body) : event;
     req = event;
@@ -625,25 +628,27 @@ module.exports.mintTxWait = async (event) => {
     developeruuid = req.developeruuid;
     mintId = req.mintId;
     chainDeveloperuuid = req.chainDeveloperuuid;
+    minted = req.minted;
 
-    if (typeof developeruuid === "undefined") throw new Error("developeruuid is undefined");
-    if (typeof chainDeveloperuuid === "undefined") throw new Error("chainDeveloperuuid is undefined");
-    if (typeof mintId === "undefined") throw new Error("mintId is undefined");
-   
-
-  } catch (e){
+    if (typeof developeruuid === "undefined")
+      throw new Error("developeruuid is undefined");
+    if (typeof chainDeveloperuuid === "undefined")
+      throw new Error("chainDeveloperuuid is undefined");
+    if (typeof mintId === "undefined") 
+      throw new Error("mintId is undefined");
+    if (typeof minted === "undefined") 
+      throw new Error("minted is undefined");
+  } catch (e) {
     console.error(e);
     const error = new CustomError("HandledError", e.message);
     return error;
   }
 
   try {
-  
     //Needs to be passed in o pulled from mint
     const chain = chainDeveloperuuid.split(":")[0];
 
     console.log("Checking Mint State for:", { mintId, chain, developeruuid });
-
 
     //Let's grab the mint we are processing
 
@@ -656,7 +661,6 @@ module.exports.mintTxWait = async (event) => {
     //fill object from database
     await mint.get();
 
-
     //Set values from mint
     const { contractId } = mint;
 
@@ -666,61 +670,75 @@ module.exports.mintTxWait = async (event) => {
       chain,
       contractId
     );
+    console.info('Grab the contract');
     await _DeveloperContract.get();
 
+    const alchemy = require("../common/alchemy");
+    const _ = require("lodash");
 
-     const alchemy = require("../common/alchemy");
-     const _ = require("lodash");
+    //Grab the transfers
+    console.info('Grab the transfers for the address:', {address: mint.recipientAddress, contractAddress: _DeveloperContract.contractAddress})
+    const transfers = await alchemy.getAssetTransfers(mint.recipientAddress, [
+      _DeveloperContract.contractAddress,
+    ]);
 
-     const transfers = await alchemy.getAssetTransfers(mint.recipientAddress, [_DeveloperContract.contractAddress]);
+    console.info('Filtering Transfer by Tx Hash');
+    const transferTx = _.find(transfers.transfers, { hash: mint.txHash });
 
-     const transferTx = _.find(transfers.transfers, { 'hash': mint.txHash });
+    if(typeof transferTx !== "undefined"){
 
-     
+      console.log("Minted Tx:", transferTx);
 
-     const tokenId = BigInt(transferTx.tokenId).toString();
+      const tokenId = BigInt(transferTx.tokenId).toString();
+  
+      console.log("Minted tokenId:", tokenId);
+  
+      console.info("Updating mint");
+  
+      await mint._updateFields(mint, [{ name: "tokenId", value: tokenId }]);
+  
+      minted = "true";
+  
+      console.info("Creating Digital Asset", minted);
+  
+      const asset = new DigitalAsset(
+        chain,
+        _DeveloperContract.contractAddress,
+        typeof transferTx.erc721TokenId !== "undefined" ? "erc721" : "erc1155",
+        tokenId,
+        null,
+        mint.description,
+        mint.name,
+        mint.imageURL,
+        mint.external_url,
+        mint.attributes,
+        mint.animation_url,
+        mint.youtube_url
+      );
+  
+      console.info("Saving Digital Asset", asset);
+  
+      const saveAsset = await asset.save();
+  
+      console.log("Asset Saved:", saveAsset);
+    }else{
+      console.info('transferTx Empty', transferTx);
+      console.info('Re-Running Process after wait time');
+    };
 
-     console.log('tokenId:', tokenId);
-
-     await mint._updateFields(mint, [
-      { name: "tokenId", value: tokenId },
-     ]);
-
-     const DigitalAsset = require("../model/DigitalAsset");
-     const asset = new DigitalAsset(
-       chain,
-       _DeveloperContract.contractAddress,
-       typeof erc721TokenId !== "undefined" ? "erc721" : "erc1155",
-       tokenId,
-       null,
-       mint.description,
-       mint.name,
-       mint.hash,
-       mint.external_url,
-       mint.attributes,
-       mint.animation_url,
-       mint.youtube_url
-     );
-
-     console.log(asset);
-
-     await asset.save();
-
-     const minted = true;
-
-
+ 
     return {
       dt,
+      minted,
       chainDeveloperuuid,
       mintId,
       developeruuid,
     };
-  }catch (e) {
+  } catch (e) {
     console.error(e);
     const error = new CustomError("HandledError", e.message);
     return error;
   }
-
 };
 
 module.exports.stop = async (event) => {

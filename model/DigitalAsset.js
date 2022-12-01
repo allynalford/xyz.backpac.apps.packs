@@ -72,11 +72,10 @@ function DigitalAsset(chain, address, schema_name, tokenId, tokenUri, descriptio
  DigitalAsset.prototype.save = async function() {
     log.options.tags = ['log', '<<level>>']; 
     try {
-        const dt = this.dt;
-        this.isoDate = dateFormat(dt, "isoDate"),
-        this.week = dateFormat(dt, "W"),
-        this.created = dateFormat(dt, "isoUtcDateTime"),
-        this.updatedAt = dateFormat(dt, "isoUtcDateTime")
+        this.isoDate = dateFormat(this.dt, "isoDate"),
+        this.week = dateFormat(this.dt, "W"),
+        this.created = dateFormat(this.dt, "isoUtcDateTime"),
+        this.updatedAt = dateFormat(this.dt, "isoUtcDateTime")
 
         const generateApiKey = require('generate-api-key').default;
 
