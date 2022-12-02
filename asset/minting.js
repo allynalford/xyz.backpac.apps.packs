@@ -210,7 +210,8 @@ module.exports.assetMetaData = async (event) => {
 
 
 module.exports.estimateFees = async (event) => {
-  let req, dt, chainDeveloperuuid, mintId, developeruuid, username;
+  let req, dt, chainDeveloperuuid, mintId, developeruuid, username, recipientType;
+  let isBackpacUser = "false";
   try {
     //req = event.body !== "" ? JSON.parse(event.body) : event;
     req = event;
@@ -270,7 +271,7 @@ module.exports.estimateFees = async (event) => {
       { name: "stage", value: "ESTIMATING"},
     ]);
 
-    console.log(mint)
+    //console.log(mint)
 
     //Set values from mint
     const { contractId } = mint;
@@ -290,24 +291,54 @@ module.exports.estimateFees = async (event) => {
 
     let user = {};
 
-    console.info('Checking Recipient Type', mint.recipientType);
+    //Set the recipientType and pass it thru to email block
+    recipientType = mint.recipientType;
+
+    console.info('Checking Recipient Type', recipientType);
     //Check if the process is by email or wallet
-    if(mint.recipientType === "email"){
+    if (recipientType === "email") {
       //Build the object
-      user = new User(undefined, undefined, mint.recipient, undefined, undefined, undefined);
-      //Fill will data
-      await user.getByEmail();
-    }else{
-      console.info('Non-Backpac User');
-      user = new User(undefined, undefined, mint.recipient);
+      user = new User(
+        undefined,
+        undefined,
+        mint.recipient,
+        undefined,
+        undefined,
+        undefined
+      );
+
+      if (user.existsByEmail() !== false) {
+        //Fill with user data
+        await user.getByEmail();
+
+        isBackpacUser = "true";
+        console.log("Backpac user recipient address", user.address);
+
+        //Update the mint to the address of the user
+        await mint._updateFields(mint, [
+          { name: "recipientAddress", value: user.address },
+        ]);
+      } else {
+        isBackpacUser = "false";
+
+        console.log("Non-Backpac user recipient email address", mint.recipient);
+
+        //We need to grab the developer's Pack and Mint to it
+
+        //Update the mint to the address of the user
+        await mint._updateFields(mint, [
+          { name: "recipientAddress", value: _DeveloperPack.as },
+        ]);
+      }
+    } else {
+      console.info("Wallet User");
+      isBackpacUser = "false";
+      //Update the mint to the address of the user
+      await mint._updateFields(mint, [
+        { name: "recipientAddress", value: mint.recipient },
+      ]);
     }
 
-    console.log('recipient address', user.address);
-
-    //Update the mint to the address of the user
-    await mint._updateFields(mint, [
-      { name: "recipientAddress", value: user.address },
-    ]);
     
     
     //Build a connection to the chain
@@ -404,7 +435,7 @@ module.exports.estimateFees = async (event) => {
     }
    
 
-    return {hasGas: "true", transferred, dt, chainDeveloperuuid, contractId, developeruuid, mintId};
+    return {hasGas: "true", transferred, dt, chainDeveloperuuid, contractId, developeruuid, mintId, isBackpacUser, recipientType};
 
   }catch (e) {
     console.error(e);
@@ -416,7 +447,7 @@ module.exports.estimateFees = async (event) => {
 
 
 module.exports.mint = async (event) => {
-  let req, dt, chainDeveloperuuid, mintId, developeruuid;
+  let req, dt, chainDeveloperuuid, mintId, developeruuid, isBackpacUser, recipientType;
   let minted = "false";
   try {
     //req = event.body !== "" ? JSON.parse(event.body) : event;
@@ -425,6 +456,8 @@ module.exports.mint = async (event) => {
     developeruuid = req.developeruuid;
     mintId = req.mintId;
     chainDeveloperuuid = req.chainDeveloperuuid;
+    isBackpacUser = req.isBackpacUser;
+    recipientType = req.recipientType;
 
     if (typeof developeruuid === "undefined")
       throw new Error("developeruuid is undefined");
@@ -432,6 +465,10 @@ module.exports.mint = async (event) => {
       throw new Error("chainDeveloperuuid is undefined");
     if (typeof mintId === "undefined") 
       throw new Error("mintId is undefined");
+    if (typeof isBackpacUser === "undefined") 
+      throw new Error("isBackpacUser is undefined");
+    if (typeof recipientType === "undefined") 
+      throw new Error("recipientType is undefined");
   } catch (e) {
     console.error(e);
     const error = new CustomError("HandledError", e.message);
@@ -611,6 +648,8 @@ module.exports.mint = async (event) => {
       chainDeveloperuuid,
       mintId,
       developeruuid,
+      recipientType,
+      isBackpacUser
     };
   } catch (e) {
     console.error(e);
@@ -620,7 +659,7 @@ module.exports.mint = async (event) => {
 };
 
 module.exports.mintTxWait = async (event) => {
-  let req, dt, chainDeveloperuuid, mintId, developeruuid, minted;
+  let req, dt, chainDeveloperuuid, mintId, developeruuid, minted, recipientType, isBackpacUser;
   try {
     //req = event.body !== "" ? JSON.parse(event.body) : event;
     req = event;
@@ -629,6 +668,8 @@ module.exports.mintTxWait = async (event) => {
     mintId = req.mintId;
     chainDeveloperuuid = req.chainDeveloperuuid;
     minted = req.minted;
+    isBackpacUser = req.isBackpacUser;
+    recipientType = req.recipientType;
 
     if (typeof developeruuid === "undefined")
       throw new Error("developeruuid is undefined");
@@ -638,6 +679,10 @@ module.exports.mintTxWait = async (event) => {
       throw new Error("mintId is undefined");
     if (typeof minted === "undefined") 
       throw new Error("minted is undefined");
+    if (typeof isBackpacUser === "undefined") 
+      throw new Error("isBackpacUser is undefined");
+    if (typeof recipientType === "undefined") 
+      throw new Error("recipientType is undefined");
   } catch (e) {
     console.error(e);
     const error = new CustomError("HandledError", e.message);
@@ -725,6 +770,93 @@ module.exports.mintTxWait = async (event) => {
       console.info('transferTx Empty', transferTx);
       console.info('Re-Running Process after wait time');
     };
+
+ 
+    return {
+      dt,
+      minted,
+      chainDeveloperuuid,
+      mintId,
+      developeruuid,
+      isBackpacUser, 
+      recipientType
+    };
+  } catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+};
+
+module.exports.emailNonBackpacUser = async (event) => {
+  let req, dt, chainDeveloperuuid, mintId, developeruuid, minted;
+  try {
+    req = event.body !== "" ? JSON.parse(event.body) : event;
+    //req = event;
+    dt = dateFormat(new Date(), "isoUtcDateTime");
+    developeruuid = req.developeruuid;
+    mintId = req.mintId;
+    chainDeveloperuuid = req.chainDeveloperuuid;
+    minted = req.minted;
+
+    if (typeof developeruuid === "undefined")
+      throw new Error("developeruuid is undefined");
+    if (typeof chainDeveloperuuid === "undefined")
+      throw new Error("chainDeveloperuuid is undefined");
+    if (typeof mintId === "undefined") 
+      throw new Error("mintId is undefined");
+    if (typeof minted === "undefined") 
+      throw new Error("minted is undefined");
+  } catch (e) {
+    console.error(e);
+    const error = new CustomError("HandledError", e.message);
+    return error;
+  }
+
+  try {
+    //Needs to be passed in o pulled from mint
+    const chain = chainDeveloperuuid.split(":")[0];
+
+    console.log("Sending E-Mail for:", { mintId, chain, developeruuid, minted });
+
+    //Let's grab the mint we are processing
+
+    //init module
+    const Mint = require("../model/Mint");
+
+    //init object
+    const mint = new Mint(developeruuid, chain, null, null, mintId);
+
+    //fill object from database
+    await mint.get();
+
+    //Build the email object
+    const Email = require('../model/Email');
+
+    //We will look up this data from the Brand in the future
+
+    //Build email object for mintId
+    const email = new Email(
+      process.env.CLAIM_EMAIL_SOURCE, //Sent from address
+      [mint.recipient], //Addresses to send messages to
+      process.env.CLAIM_EMAIL_SUBJECT, //Subject of the message
+      {
+        title: process.env.CLAIM_EMAIL_SUBJECT, //Title of the HTML document
+        emailAddress: mint.recipient, //Who is getting the email
+        callToAction: "Claim your NEW Digital Asset",
+        message: "This is the email message we will send",
+        closingMessage: "This should close out the email",
+        subMessage: "This is the sub-message for the message",
+      }
+    );
+
+    //Build the email
+    const emailHTML = await email.BuildEmail();
+
+    //send the email
+    const emailed = await email.SendEmail(emailHTML);
+
+    console.info("Sent E-Mail:", emailed);
 
  
     return {

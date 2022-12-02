@@ -35,6 +35,7 @@ provider:
     SNS_TOPIC_USER_CREATION: UserCreation-${self:service}-${opt:stage, self:provider.stage}
     PACKS_BUCKET: ${self:service}-${opt:stage, self:provider.stage}-packs
     ASSET_UPLOAD_BUCKET: ${self:service}-${opt:stage, self:provider.stage}-asset-uploads
+    EMAIL_TEMPLATES_BUCKET: ${self:service}-${opt:stage, self:provider.stage}-email-templates
     DYNAMODB_TABLE_PACKSMASTER: ${self:service}-${opt:stage, self:provider.stage}-packsmaster
     DYNAMODB_TABLE_PACKSMASTER_MAN: ${self:service}-${opt:stage, self:provider.stage}-packmaster-man
     DYNAMODB_TABLE_PACKS: ${self:service}-${opt:stage, self:provider.stage}-packs
@@ -103,7 +104,11 @@ resources:
         Value: "arn:aws:dynamodb:${self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE_BACKPAC}/index/*"
         Export:
           Name: ${self:service}-${opt:stage, self:provider.stage}-BackpacTableArn
-  Resources: 
+  Resources:
+    EmailTemplatesBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:provider.environment.EMAIL_TEMPLATES_BUCKET} 
     AssetUploadEncryptedBucket:
       Type: AWS::S3::Bucket
       Properties:

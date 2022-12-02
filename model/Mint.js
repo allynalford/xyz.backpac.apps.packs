@@ -74,6 +74,7 @@ function Mint(developeruuid, chain, recipient, recipientType, mintId, contractId
 Mint.prototype.get = async function () {
     log.options.tags = ['log', '<<level>>'];
     try {
+        
         const mint = await dynamo.qetFromDBRegion({
             TableName: process.env.DYNAMODB_TABLE_DEVELOPER_MINT,
             Key: {
@@ -82,7 +83,7 @@ Mint.prototype.get = async function () {
             }
         }, process.env.table_region);
 
-        log.info('qetFromDBRegion:mint', mint)
+       // log.info('qetFromDBRegion:mint', mint)
 
         this.fill(mint);
 

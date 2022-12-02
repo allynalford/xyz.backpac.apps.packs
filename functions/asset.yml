@@ -147,7 +147,7 @@ mintAsset:
       table_region: us-east-1      
 mintAssetTxWait:
   handler: asset/minting.mintTxWait
-  memorySize: 256
+  memorySize: 128
   timeout: 900 
   iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-mintAssetTxWait-role
   iamRoleStatements:
@@ -171,6 +171,57 @@ mintAssetTxWait:
         - dynamodb:UpdateItem
       Resource: 
         - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
+emailNonBackpacUser:
+  handler: asset/minting.emailNonBackpacUser
+  memorySize: 128
+  timeout: 180
+  environment:
+    S3_CLAIM_EMAIL_TEMPLATE_KEY: ${file(config.${self:provider.stage}.json):S3_CLAIM_EMAIL_TEMPLATE_KEY}
+    CLAIM_EMAIL_SOURCE: ${file(config.${self:provider.stage}.json):CLAIM_EMAIL_SOURCE}
+    CLAIM_EMAIL_SUBJECT: ${file(config.${self:provider.stage}.json):CLAIM_EMAIL_SUBJECT}
+    table_region: us-east-1
+  iamRoleStatementsName: ${self:service}-${opt:stage, self:provider.stage}-emailToNonBackpacUser-role
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - s3:Get*
+        - s3:ListBucket
+        - s3:ListBucketVersions
+        - s3:GetBucketLocation
+        - s3:GetObject
+      Resource: 
+        - "arn:aws:s3:::${self:provider.environment.EMAIL_TEMPLATES_BUCKET}/*"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DIGITAL_ASSET}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_CONTRACT}"
+    - Effect: Allow
+      Action:
+        - dynamodb:DescribeTable
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+      Resource: 
+        - "arn:aws:dynamodb:us-east-1:*:table/${self:provider.environment.DYNAMODB_TABLE_DEVELOPER_MINT}"
+    - Effect: Allow
+      Action:
+        - ses:SendEmail
+      Resource: 
+        - "*"
+  events:
+    - http:
+        path: asset/minting/email
+        method: post 
+        authorizer: aws_iam
+        cors: true
 mintAssetStop:
   handler: asset/minting.stop
 # mintTest:

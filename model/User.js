@@ -31,6 +31,51 @@ function User(issuer, address, email, isMfaEnabled, phoneNumber, status) {
 }
 
 
+
+/**
+ * check if a  User exists by email address from the database
+ * @async
+ * @requires module:./dynamo.js
+ * @requires module:lambda-log
+ * @requires module:dateformat
+ * @example <caption>Example usage of get.</caption>
+ * @return {Promise<User>} User Object
+ */
+ User.prototype.existsByEmail = async function () {
+   log.options.tags = ["log", "<<level>>"];
+   try {
+     let user = await dynamo.queryDBRegion(
+       {
+         TableName: process.env.DYNAMODB_TABLE_USER,
+         IndexName: process.env.DYNAMODB_TABLE_USER_EMAIL_ISSUER_INDEX,
+         KeyConditionExpression: "#email = :email",
+         ExpressionAttributeNames: {
+           "#email": "email",
+         },
+         ExpressionAttributeValues: {
+           ":email": this.email,
+         },
+       },
+       process.env.table_region
+     );
+
+     console.log(user);
+
+     //If the user exists
+     if (typeof user[0] !== "undefined") {
+       return true;
+     }
+
+     //No user with email exists
+     return false;
+   } catch (e) {
+     console.error(e);
+     log.error(e);
+     throw e;
+   }
+ };
+
+
 /**
  * get a User by email address from the database and build the object
  * @async
