@@ -740,7 +740,9 @@ module.exports.mintTxWait = async (event) => {
   
       console.info("Updating mint");
   
-      await mint._updateFields(mint, [{ name: "tokenId", value: tokenId }]);
+      await mint._updateFields(mint, [{ name: "tokenId", value: tokenId }, { name: "stage", value: "MINTED" }]);
+
+      
   
       minted = "true";
   
@@ -830,6 +832,8 @@ module.exports.emailNonBackpacUser = async (event) => {
     //fill object from database
     await mint.get();
 
+    await mint._updateFields(mint, [{ name: "stage", value: "EMAILING" }]);
+
     //Build the email object
     const Email = require('../model/Email');
 
@@ -857,6 +861,11 @@ module.exports.emailNonBackpacUser = async (event) => {
     const emailed = await email.SendEmail(emailHTML);
 
     console.info("Sent E-Mail:", emailed);
+
+    await mint._updateFields(mint, [
+      { name: "stage", value: "EMAILED" },
+      { name: "EmailMessageId", value: emailed.MessageId },
+    ]);
 
  
     return {
